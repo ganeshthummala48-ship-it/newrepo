@@ -1,6 +1,6 @@
 .env
 __pycache__/
 *.pyc
-*.pkl
+# *.pkl removed to allow model deployment
 platform-tools/
 *.lnk
