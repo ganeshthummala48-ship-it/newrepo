@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../utils/constants.dart';
+import '../services/ai_service.dart';
 
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
@@ -16,9 +16,6 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   List<Map<String, String>> messages = [];
   bool isLoading = false;
 
-  // 🔐 Replace with your Gemini API key
-  final String apiKey = "AIzaSyBj-0F7vnmP6MH7mQakjDSTe4ScTBSLEY4";
-
   Future<void> sendMessage() async {
     String question = _controller.text.trim();
     if (question.isEmpty) return;
@@ -30,46 +27,21 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
     _controller.clear();
     scrollToBottom();
+
     try {
-      final response = await http.post(
-  Uri.parse(
-    "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=$apiKey"
-  ),
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: jsonEncode({
-    "contents": [
-      {
-        "parts": [
-          {"text": question}
-        ]
-      }
-    ]
-  }),
-);
+      // 🚀 Use AIService for Ollama
+      final answer = await AIService.getAIResponse(question);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        String answer = data["candidates"][0]["content"]["parts"][0]["text"];
-
-        setState(() {
-          messages.add({"role": "ai", "text": answer});
-        });
-      } else {
-        setState(() {
-          messages.add({
-            "role": "ai",
-            "text": "Error ${response.statusCode}\n${response.body}"
-          });
-        });
-      }
+      setState(() {
+        messages.add({"role": "ai", "text": answer});
+      });
     } catch (e) {
+      // 🔄 Fallback to Gemini if Ollama fails (optional, based on requirement)
+      // For now, we will show a descriptive error as per prompt "add AI assistant as ollama"
       setState(() {
         messages.add({
           "role": "ai",
-          "text": "Connection error: $e"
+          "text": "Ollama Error: ${e.toString().replaceAll('Exception:', '')}",
         });
       });
     }
@@ -94,20 +66,36 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     bool isUser = message["role"] == "user";
 
     return Align(
-      alignment:
-          isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
-        constraints: const BoxConstraints(maxWidth: 300),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         decoration: BoxDecoration(
-          color: isUser ? Colors.green : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(16),
+          gradient: isUser
+              ? AppConstants.primaryGradient
+              : const LinearGradient(colors: [Colors.white, Colors.white]),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isUser ? 20 : 0),
+            bottomRight: Radius.circular(isUser ? 0 : 20),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Text(
           message["text"] ?? "",
           style: TextStyle(
-            color: isUser ? Colors.white : Colors.black,
+            color: isUser ? Colors.white : Colors.black87,
+            height: 1.4,
           ),
         ),
       ),
@@ -117,50 +105,86 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Farmer AI Assistant"),
-        backgroundColor: Colors.green,
-      ),
+      appBar: AppBar(title: const Text("Chat with AI")),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppConstants.defaultPadding),
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 return buildMessage(messages[index]);
               },
             ),
           ),
-
           if (isLoading)
             const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
-
-          const Divider(height: 1),
-
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            color: Colors.white,
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+              top: 16,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText:
-                          "Ask about crops, soil, fertilizer...",
-                      border: InputBorder.none,
+                    decoration: InputDecoration(
+                      hintText: "Type a message...",
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => sendMessage(),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.green),
-                  onPressed: sendMessage,
-                )
+                const SizedBox(width: 12),
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppConstants.primaryGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                    onPressed: sendMessage,
+                  ),
+                ),
               ],
             ),
           ),

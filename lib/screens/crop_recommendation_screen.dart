@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../utils/constants.dart';
 
 class CropRecommendationScreen extends StatefulWidget {
-  const CropRecommendationScreen({super.key});
+  final List<dynamic>? data;
+  
+  const CropRecommendationScreen({super.key, this.data});
 
   @override
   State<CropRecommendationScreen> createState() =>
@@ -12,17 +13,8 @@ class CropRecommendationScreen extends StatefulWidget {
 
 class _CropRecommendationScreenState extends State<CropRecommendationScreen>
     with SingleTickerProviderStateMixin {
-  String soil = 'Loamy';
-  String season = 'Kharif';
-  String rainfall = 'High';
-
-  bool loading = false;
-
-  List<Map<String, dynamic>> predictions = [];
-
-  final soils = ['Loamy', 'Clay', 'Sandy', 'Alluvial', 'Black'];
-  final seasons = ['Kharif', 'Rabi', 'Zaid'];
-  final rainfalls = ['Low', 'Medium', 'High'];
+  
+  late List<Map<String, dynamic>> predictions;
 
   late AnimationController _controller;
   late Animation<double> _fade;
@@ -31,6 +23,10 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen>
   @override
   void initState() {
     super.initState();
+    predictions = widget.data != null 
+        ? List<Map<String, dynamic>>.from(widget.data!) 
+        : [];
+        
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -48,55 +44,14 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen>
       parent: _controller,
       curve: Curves.easeOut,
     ));
+    
+    _controller.forward(from: 0);
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
-  }
-
-  Future<void> recommendCrop() async {
-    setState(() {
-      loading = true;
-      predictions.clear();
-    });
-
-    final uri = Uri.parse('http://10.95.58.73:8000/recommend-crop');
-
-    try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'soil': soil,
-          'season': season,
-          'rainfall': rainfall,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        // 🔁 Supports BOTH single and top-3 responses
-        if (data['top_crops'] != null) {
-          predictions = List<Map<String, dynamic>>.from(data['top_crops']);
-        } else {
-          predictions = [
-            {
-              'crop': data['recommended_crop'],
-              'confidence': data['confidence'],
-            }
-          ];
-        }
-
-        _controller.forward(from: 0);
-      }
-    } catch (e) {
-      debugPrint("API error: $e");
-    }
-
-    setState(() => loading = false);
   }
 
   String cropImage(String crop) {
@@ -106,56 +61,42 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text('Crop Recommendation'),
-        backgroundColor: Colors.green,
+        title: const Text('Top Recommended Crops'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _dropdown('Soil Type', soil, soils, (v) => setState(() => soil = v)),
-            _dropdown(
-                'Season', season, seasons, (v) => setState(() => season = v)),
-            _dropdown('Rainfall', rainfall, rainfalls,
-                (v) => setState(() => rainfall = v)),
-
-            const SizedBox(height: 20),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: loading ? null : recommendCrop,
-                child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Recommend Crop'),
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            if (predictions.isNotEmpty)
-              FadeTransition(
-                opacity: _fade,
-                child: SlideTransition(
-                  position: _slide,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "🌾 Top Recommended Crops",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ...predictions.map(_cropCard),
-                    ],
+      body: predictions.isEmpty 
+      ? Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.grass_rounded, size: 64, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              const Text('No recommendations found.', style: TextStyle(color: Colors.grey, fontSize: 16)),
+            ],
+          ),
+        )
+      : SingleChildScrollView(
+        padding: const EdgeInsets.all(AppConstants.defaultPadding),
+        child: FadeTransition(
+          opacity: _fade,
+          child: SlideTransition(
+            position: _slide,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  child: Text(
+                    "Here are the best crops suited for your farm's conditions:",
+                    style: TextStyle(fontSize: 15, color: Colors.black87),
                   ),
                 ),
-              ),
-          ],
+                const SizedBox(height: 12),
+                ...predictions.map(_cropCard),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -164,68 +105,105 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen>
   Widget _cropCard(Map<String, dynamic> item) {
     final crop = item['crop'];
     final confidence = item['confidence'];
+    final rank = item['rank'];
+    final desc = item['description'];
+
+    // Define medal colors based on rank
+    Color rankColor = AppConstants.primaryColor;
+    if (rank == 1) rankColor = Colors.amber.shade600;
+    if (rank == 2) rankColor = Colors.grey.shade500;
+    if (rank == 3) rankColor = Colors.brown.shade400;
 
     return Card(
-      elevation: 4,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 20),
+      shape: RoundedRectangleBorder(borderRadius: AppConstants.defaultBorderRadius),
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                cropImage(crop),
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    crop,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
+             Row(
+               children: [
+                 Container(
+                   padding: const EdgeInsets.all(8),
+                   decoration: BoxDecoration(
+                     color: rankColor.withValues(alpha: 0.1),
+                     shape: BoxShape.circle,
+                   ),
+                   child: Icon(Icons.emoji_events_rounded, color: rankColor),
+                 ),
+                 const SizedBox(width: 12),
+                 Text(
+                     "Rank $rank - $crop",
+                     style: TextStyle(
+                       fontSize: 18,
+                       fontWeight: FontWeight.bold,
+                       color: rankColor,
+                      ),
                   ),
-                  const SizedBox(height: 6),
+               ],
+             ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                  borderRadius: AppConstants.defaultBorderRadius,
+                  child: Image.asset(
+                    cropImage(crop),
+                     width: double.infinity,
+                     height: 160,
+                     fit: BoxFit.cover,
+                     errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: double.infinity,
+                          height: 160,
+                          color: Colors.grey.shade100,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.grass_rounded, size: 48, color: Colors.grey.shade300),
+                              const SizedBox(height: 8),
+                              Text(crop, style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        );
+                     },
+                   ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Match Confidence:", style: TextStyle(color: Colors.grey, fontSize: 13)),
                   Text(
-                    "Confidence: ${confidence.toStringAsFixed(2)}%",
+                    "${confidence.toStringAsFixed(1)}%",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                    value: confidence / 100,
+                    minHeight: 8,
+                    backgroundColor: Colors.grey.shade200,
+                    color: rankColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  desc ?? '',
+                  style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black87),
+                ),
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _dropdown(
-    String label,
-    String value,
-    List<String> items,
-    Function(String) onChanged,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-        items: items
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-            .toList(),
-        onChanged: (v) => onChanged(v!),
       ),
     );
   }

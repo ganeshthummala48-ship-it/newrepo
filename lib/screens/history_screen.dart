@@ -1,32 +1,41 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../utils/constants.dart';
 
 class HistoryScreen extends StatelessWidget {
-  HistoryScreen({super.key}); // ❌ no const when navigating
+  const HistoryScreen({super.key}); 
 
   @override
   Widget build(BuildContext context) {
     final Box historyBox = Hive.box('historyBox');
 
     return Scaffold(
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
         title: const Text('Prediction History'),
-        backgroundColor: Colors.green,
       ),
       body: ValueListenableBuilder(
         valueListenable: historyBox.listenable(),
         builder: (context, Box box, _) {
           if (box.isEmpty) {
-            return const Center(
-              child: Text(
-                'No history yet',
-                style: TextStyle(fontSize: 16),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.history_rounded, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No predictions yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
               ),
             );
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(AppConstants.defaultPadding),
             itemCount: box.length,
             itemBuilder: (context, index) {
               final dynamic rawItem = box.getAt(index);
@@ -41,26 +50,55 @@ class HistoryScreen extends StatelessWidget {
               final String date = _formatDate(rawItem['date']);
 
               return Card(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                elevation: 3,
-                child: ListTile(
-                  leading: _buildImage(imagePath),
-                  title: Text(
-                    disease,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Text(
-                    "Confidence: ${confidence.toStringAsFixed(2)}%",
-                  ),
-                  trailing: Text(
-                    date,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
-                    ),
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: AppConstants.defaultBorderRadius,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      _buildImage(imagePath),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              disease,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Confidence: ${confidence.toStringAsFixed(1)}%",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: confidence > 80 ? Colors.green : Colors.orange,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.access_time_rounded, size: 12, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  date,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -88,20 +126,34 @@ class HistoryScreen extends StatelessWidget {
   /// 🖼️ Safe image loader
   Widget _buildImage(String path) {
     if (path.isEmpty) {
-      return const Icon(Icons.image_not_supported, size: 40);
+      return Container(
+        width: 70, height: 70,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8)
+        ),
+        child: const Icon(Icons.image_not_supported, size: 30, color: Colors.grey)
+      );
     }
 
     final file = File(path);
     if (!file.existsSync()) {
-      return const Icon(Icons.broken_image, size: 40);
+      return Container(
+        width: 70, height: 70,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8)
+        ),
+        child: const Icon(Icons.broken_image, size: 30, color: Colors.grey)
+      );
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
       child: Image.file(
         file,
-        width: 55,
-        height: 55,
+        width: 70,
+        height: 70,
         fit: BoxFit.cover,
       ),
     );
