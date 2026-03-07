@@ -8,3 +8,5 @@ services:
     envVars:
       - key: GROQ_API_KEY
         sync: false   # Set manually in Render dashboard
+      - key: PYTHON_VERSION
+        value: 3.13.5
