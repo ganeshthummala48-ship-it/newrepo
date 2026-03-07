@@ -1,0 +1,267 @@
+{
+  "Apple Apple scab": {
+    "pesticide": "Mancozeb or Captan",
+    "dosage": "2 g per liter",
+    "organic": "Sulfur spray",
+    "precaution": "Apply before rainy season"
+  },
+
+  "Apple Black rot": {
+    "pesticide": "Thiophanate-methyl",
+    "dosage": "1 g per liter",
+    "organic": "Copper fungicide",
+    "precaution": "Remove infected fruits"
+  },
+
+  "Apple Cedar apple rust": {
+    "pesticide": "Myclobutanil",
+    "dosage": "1 ml per liter",
+    "organic": "Neem oil",
+    "precaution": "Avoid nearby juniper plants"
+  },
+
+  "Apple healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Balanced fertilization",
+    "precaution": "Regular monitoring"
+  },
+
+  "Blueberry healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Proper irrigation",
+    "precaution": "Avoid waterlogging"
+  },
+
+  "Cherry (including sour) Powdery mildew": {
+    "pesticide": "Wettable sulfur",
+    "dosage": "2 g per liter",
+    "organic": "Neem oil spray",
+    "precaution": "Spray early morning"
+  },
+
+  "Cherry (including sour) healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Good pruning",
+    "precaution": "Avoid excess moisture"
+  },
+
+  "Corn (maize) Cercospora leaf spot Gray leaf spot": {
+    "pesticide": "Propiconazole",
+    "dosage": "1 ml per liter",
+    "organic": "Crop rotation",
+    "precaution": "Avoid overhead irrigation"
+  },
+
+  "Corn (maize) Common rust ": {
+    "pesticide": "Mancozeb",
+    "dosage": "2 g per liter",
+    "organic": "Neem extract",
+    "precaution": "Early stage application"
+  },
+
+  "Corn (maize) Northern Leaf Blight": {
+    "pesticide": "Azoxystrobin",
+    "dosage": "1 ml per liter",
+    "organic": "Resistant varieties",
+    "precaution": "Maintain field hygiene"
+  },
+
+  "Corn (maize) healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Balanced nutrients",
+    "precaution": "Regular field inspection"
+  },
+
+  "Grape Black rot": {
+    "pesticide": "Mancozeb",
+    "dosage": "2 g per liter",
+    "organic": "Copper fungicide",
+    "precaution": "Remove infected vines"
+  },
+
+  "Grape Esca (Black Measles)": {
+    "pesticide": "Thiophanate-methyl",
+    "dosage": "1 g per liter",
+    "organic": "Trichoderma treatment",
+    "precaution": "Avoid pruning in wet conditions"
+  },
+
+  "Grape Leaf blight (Isariopsis Leaf Spot)": {
+    "pesticide": "Chlorothalonil",
+    "dosage": "2 ml per liter",
+    "organic": "Neem oil",
+    "precaution": "Ensure air circulation"
+  },
+
+  "Grape healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Canopy management",
+    "precaution": "Prevent overcrowding"
+  },
+
+  "Orange Haunglongbing (Citrus greening)": {
+    "pesticide": "Imidacloprid",
+    "dosage": "0.5 ml per liter",
+    "organic": "Remove infected plants",
+    "precaution": "Control psyllid vectors"
+  },
+
+  "Peach Bacterial spot": {
+    "pesticide": "Copper oxychloride",
+    "dosage": "2 g per liter",
+    "organic": "Neem oil",
+    "precaution": "Avoid spraying during bloom"
+  },
+
+  "Peach healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Pruning and sanitation",
+    "precaution": "Monitor leaf health"
+  },
+
+  "Pepper, bell Bacterial spot": {
+    "pesticide": "Copper hydroxide",
+    "dosage": "2 g per liter",
+    "organic": "Bacillus subtilis",
+    "precaution": "Avoid overhead watering"
+  },
+
+  "Pepper, bell healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Balanced nutrition",
+    "precaution": "Avoid excess humidity"
+  },
+
+  "Potato Early blight": {
+    "pesticide": "Chlorothalonil",
+    "dosage": "2 ml per liter",
+    "organic": "Neem oil",
+    "precaution": "Apply at first symptoms"
+  },
+
+  "Potato Late blight": {
+    "pesticide": "Metalaxyl + Mancozeb",
+    "dosage": "2 g per liter",
+    "organic": "Copper fungicide",
+    "precaution": "Avoid water stagnation"
+  },
+
+  "Potato healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Crop rotation",
+    "precaution": "Maintain soil health"
+  },
+
+  "Raspberry healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Proper spacing",
+    "precaution": "Avoid overwatering"
+  },
+
+  "Soybean healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Balanced fertilization",
+    "precaution": "Monitor pest activity"
+  },
+
+  "Squash Powdery mildew": {
+    "pesticide": "Sulfur fungicide",
+    "dosage": "2 g per liter",
+    "organic": "Baking soda spray",
+    "precaution": "Spray in dry weather"
+  },
+
+  "Strawberry Leaf scorch": {
+    "pesticide": "Captan",
+    "dosage": "2 g per liter",
+    "organic": "Remove infected leaves",
+    "precaution": "Avoid overhead irrigation"
+  },
+
+  "Strawberry healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Mulching",
+    "precaution": "Maintain field hygiene"
+  },
+
+  "Tomato Bacterial spot": {
+    "pesticide": "Copper hydroxide",
+    "dosage": "2 g per liter",
+    "organic": "Neem oil",
+    "precaution": "Avoid wet foliage"
+  },
+
+  "Tomato Early blight": {
+    "pesticide": "Chlorothalonil",
+    "dosage": "2 ml per liter",
+    "organic": "Neem oil",
+    "precaution": "Remove infected leaves"
+  },
+
+  "Tomato Late blight": {
+    "pesticide": "Metalaxyl + Mancozeb",
+    "dosage": "2 g per liter",
+    "organic": "Copper fungicide",
+    "precaution": "Avoid excessive moisture"
+  },
+
+  "Tomato Leaf Mold": {
+    "pesticide": "Chlorothalonil",
+    "dosage": "2 ml per liter",
+    "organic": "Baking soda spray",
+    "precaution": "Ensure ventilation"
+  },
+
+  "Tomato Septoria leaf spot": {
+    "pesticide": "Mancozeb",
+    "dosage": "2 g per liter",
+    "organic": "Neem oil",
+    "precaution": "Remove infected foliage"
+  },
+
+  "Tomato Spider mites Two-spotted spider mite": {
+    "pesticide": "Abamectin",
+    "dosage": "0.5 ml per liter",
+    "organic": "Neem oil",
+    "precaution": "Spray underside of leaves"
+  },
+
+  "Tomato Target Spot": {
+    "pesticide": "Chlorothalonil",
+    "dosage": "2 ml per liter",
+    "organic": "Copper fungicide",
+    "precaution": "Avoid leaf wetness"
+  },
+
+  "Tomato Tomato Yellow Leaf Curl Virus": {
+    "pesticide": "Imidacloprid",
+    "dosage": "0.5 ml per liter",
+    "organic": "Remove infected plants",
+    "precaution": "Control whiteflies"
+  },
+
+  "Tomato Tomato mosaic virus": {
+    "pesticide": "No chemical cure",
+    "dosage": "-",
+    "organic": "Remove infected plants",
+    "precaution": "Disinfect tools"
+  },
+
+  "Tomato healthy": {
+    "pesticide": "Not required",
+    "dosage": "-",
+    "organic": "Balanced fertilization",
+    "precaution": "Regular monitoring"
+  }
+}

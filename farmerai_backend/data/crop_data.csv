@@ -1,0 +1,78 @@
+﻿soil,season,rainfall,crop
+Loamy,Kharif,High,rice
+Clay,Kharif,Very High,rice
+Alluvial,Kharif,High,rice
+Clay Loam,Kharif,Moderate,rice
+Loamy,Rabi,Medium,wheat
+Alluvial,Rabi,Medium,wheat
+Loamy,Rabi,Low,wheat
+Silty Loam,Rabi,Medium,wheat
+Black,Kharif,High,cotton
+Black,Kharif,Moderate,cotton
+Red,Kharif,Medium,cotton
+Black,Rabi,Low,chickpea
+Loamy,Rabi,Low,chickpea
+Red,Rabi,Low,chickpea
+Red,Zaid,Low,groundnut
+Sandy Loam,Zaid,Low,groundnut
+Loamy,Zaid,Medium,groundnut
+Loamy,Kharif,Medium,maize
+Alluvial,Kharif,Medium,maize
+Red,Kharif,Low,maize
+Red,Kharif,Medium,millet
+Red,Kharif,Low,millet
+Laterite,Kharif,Low,millet
+Sandy Loam,Zaid,Medium,tomato
+Loamy,Zaid,Medium,tomato
+Well Drained Loam,Zaid,Moderate,tomato
+Loose Sandy,Rabi,Low,carrot
+Sandy Loam,Rabi,Low,carrot
+Loamy,Rabi,Low,carrot
+Loamy,Rabi,Medium,cabbage
+Sandy Loam,Rabi,Medium,cabbage
+Clay Loam,Rabi,Moderate,cabbage
+Well Drained Loam,Rabi,Low,onion
+Sandy Loam,Rabi,Low,onion
+Loamy,Rabi,Medium,onion
+Loamy,Zaid,Medium,beans
+Sandy Loam,Zaid,Medium,beans
+Loamy,Kharif,Medium,beans
+Loamy,Rabi,Medium,spinach
+Silty Loam,Rabi,Medium,spinach
+Alluvial,Rabi,Moderate,spinach
+Sandy Loam,Rabi,Medium,radish
+Loose Sandy,Rabi,Medium,radish
+Loamy,Rabi,Low,radish
+Loamy,Kharif,Medium,brinjal
+Sandy Loam,Kharif,Medium,brinjal
+Clay Loam,Kharif,High,brinjal
+Loamy,Kharif,High,chilli
+Sandy Loam,Kharif,Moderate,chilli
+Red,Kharif,Medium,chilli
+Loamy,Zaid,Medium,ladyfinger
+Sandy Loam,Zaid,Medium,ladyfinger
+Loamy,Kharif,Moderate,ladyfinger
+Loamy,Rabi,Medium,cauliflower
+Sandy Loam,Rabi,Medium,cauliflower
+Clay Loam,Rabi,Moderate,cauliflower
+Loamy,Rabi,Low,peas
+Sandy Loam,Rabi,Low,peas
+Alluvial,Rabi,Moderate,peas
+Sandy,Zaid,Low,watermelon
+Sandy Loam,Zaid,Low,watermelon
+Sandy,Zaid,Very Low,watermelon
+Sandy,Zaid,Medium,muskmelon
+Sandy Loam,Zaid,Medium,muskmelon
+Sandy,Zaid,Low,muskmelon
+Sandy Loam,Zaid,Medium,cucumber
+Loamy,Zaid,Medium,cucumber
+Alluvial,Zaid,Moderate,cucumber
+Loamy,Zaid,Medium,pumpkin
+Sandy Loam,Zaid,Medium,pumpkin
+Alluvial,Zaid,Moderate,pumpkin
+Sandy Loam,Zaid,Medium,bottle_gourd
+Loamy,Zaid,Medium,bottle_gourd
+Alluvial,Zaid,Moderate,bottle_gourd
+Loamy,Kharif,Medium,coriander
+Sandy Loam,Kharif,Medium,coriander
+Alluvial,Kharif,Moderate,coriander
