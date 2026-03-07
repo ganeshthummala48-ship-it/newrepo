@@ -1,8 +1,6 @@
 import os
 import json
 import io
-import numpy as np
-import tensorflow as tf
 import joblib
 from PIL import Image
 from fastapi import FastAPI, File, UploadFile
@@ -102,13 +100,19 @@ MODEL_PATH = os.path.join(BASE_DIR, "model", "plant_disease_model.h5")
 LABELS_PATH = os.path.join(BASE_DIR, "model", "labels.json")
 TREATMENTS_PATH = os.path.join(BASE_DIR, "data", "treatments.json")
 
-try:
-    disease_model = tf.keras.models.load_model(MODEL_PATH)
-    print("✅ Disease detection model loaded")
-except Exception as e:
-    print(f"⚠️ Warning: Could not load disease detection model: {e}")
-    print("👉 Please run 'python train_model.py' to re-train the model in this environment.")
-    disease_model = None
+# Global disease model variable (lazy loaded)
+disease_model = None
+
+def get_disease_model():
+    global disease_model
+    if disease_model is None:
+        import tensorflow as tf
+        try:
+            disease_model = tf.keras.models.load_model(MODEL_PATH)
+            print("✅ Disease detection model loaded")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not load disease detection model: {e}")
+    return disease_model
 
 with open(LABELS_PATH, "r", encoding="utf-8") as f:
     label_map = json.load(f)
@@ -158,6 +162,11 @@ def normalize_disease(name: str) -> str:
 
 @app.post("/detect-disease")
 async def detect_disease(file: UploadFile = File(...)):
+    import numpy as np
+    model = get_disease_model()
+    if not model:
+        return {"error": "Disease detection model not available on this server."}
+        
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     image = image.resize((224, 224))
@@ -165,7 +174,7 @@ async def detect_disease(file: UploadFile = File(...)):
     image_array = np.array(image) / 255.0
     image_array = np.expand_dims(image_array, axis=0)
 
-    predictions = disease_model.predict(image_array)
+    predictions = model.predict(image_array)
     predicted_index = int(np.argmax(predictions))
     confidence = float(np.max(predictions)) * 100
 
@@ -256,7 +265,11 @@ Keep explanation simple and farmer-friendly.
 
 @app.post("/recommend-crop")
 def recommend_crop(data: CropRequest):
+    import numpy as np
     try:
+        if not crop_model:
+            return {"error": "Crop recommendation model not loaded. Check server logs."}
+            
         soil_enc = soil_encoder.transform([data.soil])[0]
         season_enc = season_encoder.transform([data.season])[0]
         rainfall_enc = rainfall_encoder.transform([data.rainfall])[0]

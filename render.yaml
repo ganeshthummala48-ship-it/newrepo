@@ -3,8 +3,9 @@ services:
     name: farmerai-backend
     env: python
     rootDir: farmerai_backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python train_crop_model.py
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: farmerai_backend
     envVars:
       - key: GROQ_API_KEY
         sync: false   # Set manually in Render dashboard
