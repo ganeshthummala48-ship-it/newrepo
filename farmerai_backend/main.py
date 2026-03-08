@@ -122,7 +122,7 @@ with open(TREATMENTS_PATH, "r", encoding="utf-8") as f:
 
 
 # ======================================================
-# 🌾 CROP RECOMMENDATION MODEL FILES
+# 🌾 CROP RECOMMENDATION MODEL (LAZY LOADING)
 # ======================================================
 
 CROP_MODEL_PATH = os.path.join(BASE_DIR, "crop_model.pkl")
@@ -131,21 +131,26 @@ SEASON_ENCODER_PATH = os.path.join(BASE_DIR, "season_encoder.pkl")
 RAINFALL_ENCODER_PATH = os.path.join(BASE_DIR, "rainfall_encoder.pkl")
 CROP_ENCODER_PATH = os.path.join(BASE_DIR, "crop_encoder.pkl")
 
-try:
-    crop_model = joblib.load(CROP_MODEL_PATH)
-    soil_encoder = joblib.load(SOIL_ENCODER_PATH)
-    season_encoder = joblib.load(SEASON_ENCODER_PATH)
-    rainfall_encoder = joblib.load(RAINFALL_ENCODER_PATH)
-    crop_encoder = joblib.load(CROP_ENCODER_PATH)
-    print("🌾 Crop recommendation model loaded")
-except Exception as e:
-    print(f"⚠️ Warning: Could not load crop recommendation model: {e}")
-    print("👉 Please run 'python train_crop_model.py' to re-train the model in this environment.")
-    crop_model = None
-    soil_encoder = None
-    season_encoder = None
-    rainfall_encoder = None
-    crop_encoder = None
+# Global variables (lazy loaded)
+crop_model = None
+soil_encoder = None
+season_encoder = None
+rainfall_encoder = None
+crop_encoder = None
+
+def get_crop_recommendation_models():
+    global crop_model, soil_encoder, season_encoder, rainfall_encoder, crop_encoder
+    if crop_model is None:
+        try:
+            crop_model = joblib.load(CROP_MODEL_PATH)
+            soil_encoder = joblib.load(SOIL_ENCODER_PATH)
+            season_encoder = joblib.load(SEASON_ENCODER_PATH)
+            rainfall_encoder = joblib.load(RAINFALL_ENCODER_PATH)
+            crop_encoder = joblib.load(CROP_ENCODER_PATH)
+            print("🌾 Crop recommendation model loaded")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not load crop recommendation model: {e}")
+    return crop_model, soil_encoder, season_encoder, rainfall_encoder, crop_encoder
 
 
 # ======================================================
@@ -267,22 +272,23 @@ Keep explanation simple and farmer-friendly.
 def recommend_crop(data: CropRequest):
     import numpy as np
     try:
-        if not crop_model:
+        model, s_enc, se_enc, r_enc, c_enc = get_crop_recommendation_models()
+        if not model:
             return {"error": "Crop recommendation model not loaded. Check server logs."}
             
-        soil_enc = soil_encoder.transform([data.soil])[0]
-        season_enc = season_encoder.transform([data.season])[0]
-        rainfall_enc = rainfall_encoder.transform([data.rainfall])[0]
+        soil_enc = s_enc.transform([data.soil])[0]
+        season_enc = se_enc.transform([data.season])[0]
+        rainfall_enc = r_enc.transform([data.rainfall])[0]
 
         features = np.array([[soil_enc, season_enc, rainfall_enc]])
-        probabilities = crop_model.predict_proba(features)[0]
+        probabilities = model.predict_proba(features)[0]
         top_indices = np.argsort(probabilities)[::-1][:3]
 
         top_crops = []
         top_probability = probabilities[top_indices[0]]
 
         for rank, idx in enumerate(top_indices, start=1):
-            crop_name = crop_encoder.inverse_transform([idx])[0]
+            crop_name = c_enc.inverse_transform([idx])[0]
             relative_confidence = (probabilities[idx] / top_probability) * 100
 
             explanation = (
