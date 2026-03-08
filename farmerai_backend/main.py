@@ -408,6 +408,10 @@ async def risk_alerts(crop: str, location: str):
 # ROOT
 # ======================================================
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 @app.get("/")
 def root():
     return {
