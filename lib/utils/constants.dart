@@ -15,7 +15,6 @@ class AppConstants {
   static const String marketApiKey =
       '579b464db66ec23bdd000001f5b1cddc55b948ae5f23f72870cde25e';
   static const String weatherApiKey = '2254ffc3bbd3014aec24a3f9463afebc';
-  static const String geminiApiKey = 'AIzaSyBj-0F7vnmP6MH7mQakjDSTe4ScTBSLEY4';
 
   // 🤖 AI is handled server-side via Groq API (no local Ollama needed)
 
