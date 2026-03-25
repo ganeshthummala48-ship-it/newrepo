@@ -1,0 +1,44 @@
+{
+  "Rice Bacterial leaf blight": {
+    "pesticide": "Streptocycline",
+    "dosage": "0.1 g per liter",
+    "organic": "Neem oil spray",
+    "precaution": "Avoid nitrogen overdose"
+  },
+  "Rice Brown spot": {
+    "pesticide": "Mancozeb",
+    "dosage": "2 g per liter",
+    "organic": "Seed treatment with Trichoderma",
+    "precaution": "Improve soil drainage"
+  },
+  "Rice Leaf blast": {
+    "pesticide": "Tricyclazole",
+    "dosage": "0.6 g per liter",
+    "organic": "Pseudomonas fluorescens",
+    "precaution": "Avoid late planting"
+  },
+  "Cotton Bacterial blight": {
+    "pesticide": "Copper oxychloride",
+    "dosage": "2.5 g per liter",
+    "organic": "Hot water seed treatment",
+    "precaution": "Remove crop debris"
+  },
+  "Cotton Leaf curl virus": {
+    "pesticide": "Imidacloprid (for whitefly control)",
+    "dosage": "0.5 ml per liter",
+    "organic": "Yellow sticky traps",
+    "precaution": "Use resistant varieties"
+  },
+  "Mango Anthracnose": {
+    "pesticide": "Carbendazim",
+    "dosage": "1 g per liter",
+    "organic": "Pruning of diseased twigs",
+    "precaution": "Spray during flowering"
+  },
+  "Pomegranate Bacterial blight": {
+    "pesticide": "Streptocycline + Copper oxychloride",
+    "dosage": "0.5 g + 2 g per liter",
+    "organic": "Bordeaux mixture 1%",
+    "precaution": "Sanitation of tools"
+  }
+}
