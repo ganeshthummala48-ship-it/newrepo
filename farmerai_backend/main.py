@@ -3,6 +3,7 @@ import json
 import io
 import joblib
 from PIL import Image
+import keras
 from fastapi import FastAPI, File, UploadFile, Depends, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -283,7 +284,8 @@ async def startup_event():
         import tensorflow as tf
         import numpy as np
         try:
-            disease_model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+            # Use native Keras 3 loading for better compatibility
+            disease_model = keras.models.load_model(MODEL_PATH, compile=False)
             print("✅ Base disease detection model loaded")
             
             # WARM-UP: Ensure first prediction is fast
@@ -313,7 +315,7 @@ def get_specialized_model(crop_name: str):
         if os.path.exists(spec_path):
             import tensorflow as tf
             try:
-                specialized_models[crop_name] = tf.keras.models.load_model(spec_path, compile=False)
+                specialized_models[crop_name] = keras.models.load_model(spec_path, compile=False)
                 print(f"✅ Specialized model for {crop_name} loaded from {spec_path}")
             except Exception as e:
                 print(f"⚠️ Warning: Could not load specialized model for {crop_name}: {e}")
