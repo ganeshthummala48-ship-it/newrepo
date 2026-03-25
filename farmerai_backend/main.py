@@ -267,7 +267,9 @@ def get_disease_model():
 async def startup_event():
     """Performs pre-loading and setup tasks on server start."""
     global disease_model
-    print("🌅 Server starting: Pre-loading models...")
+    import tensorflow as tf
+    import keras
+    print(f"🌅 Server starting: Pre-loading models... [TF={tf.__version__}, Keras={keras.__version__}]")
     
     # 1. Ensure disease model is present
     try:
