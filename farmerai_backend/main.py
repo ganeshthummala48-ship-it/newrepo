@@ -1,5 +1,6 @@
-import os
 import json
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
 import io
 import joblib
 from PIL import Image
