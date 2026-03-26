@@ -137,6 +137,91 @@ def _migrate_db():
 
 _migrate_db()
 
+# ── Seed DB with initial contractor data if empty ──
+def _seed_db():
+    db = SessionLocal()
+    try:
+        if db.query(User).filter(User.role == "contractor").count() == 0:
+            print("🌱 Seeding initial contractor data...")
+            mock_listings = [
+                {
+                    "contractor_name": "AgroStore Alpha",
+                    "type": "fertilizers",
+                    "title": {"en": "Urea Gold Premium", "te": "యూరియా గోల్డ్ ప్రీమియం"},
+                    "contact": "9000100020",
+                    "description": {"en": "High nitrogen fertilizer for paddy and maize.", "te": "వరి మరియు మొక్కజొన్న కోసం అధిక నైట్రోజన్ ఎరువులు."},
+                    "price": "₹350/50kg",
+                    "extra_fields": {"stock": "500 bags", "composition": "N:P:K (46:0:0)"},
+                    "lat": 17.3850,
+                    "lng": 78.4867
+                },
+                {
+                    "contractor_name": "Farmer's Friend Shop",
+                    "type": "fertilizers",
+                    "title": {"en": "DAP - Powerful Growth", "te": "డిఎపి - శక్తివంతమైన వృద్ధి"},
+                    "contact": "9000100021",
+                    "description": {"en": "Essential phosphorus for root development.", "te": "వేరు అభివృద్ధికి అవసరమైన భాస్వరం."},
+                    "price": "₹1350/50kg",
+                    "extra_fields": {"stock": "200 bags", "composition": "N:P:K (18:46:0)"},
+                    "lat": 17.4000,
+                    "lng": 78.5000
+                },
+                {
+                    "contractor_name": "Kisan Seva Center",
+                    "type": "fertilizers",
+                    "title": {"en": "Organic Compost Plus", "te": "సేంద్రీయ కంపోస్ట్ ప్లస్"},
+                    "contact": "9000100022",
+                    "description": {"en": "Pure organic manure for sustainable farming.", "te": "స్థిరమైన వ్యవసాయం కోసం స్వచ్ఛమైన సేంద్రీయ ఎరువు."},
+                    "price": "₹450/40kg",
+                    "extra_fields": {"stock": "1000 bags", "origin": "Eco-Friendly"},
+                    "lat": 17.3700,
+                    "lng": 78.4500
+                },
+                {
+                    "contractor_name": "Ramu Tractors",
+                    "type": "machinery",
+                    "title": {"en": "Mahindra Arjun 605", "te": "మహీంద్రా అర్జున్ 605"},
+                    "contact": "9000100023",
+                    "description": {"en": "Heavy duty tractor for plowing and transport.", "te": "దున్నడం మరియు రవాణా కోసం భారీ ట్రాక్టర్."},
+                    "price": "₹800/hr",
+                    "extra_fields": {"model": "2023", "hp": "57 HP"},
+                    "lat": 17.4200,
+                    "lng": 78.4800
+                }
+            ]
+            for item in mock_listings:
+                if not db.query(User).filter(User.name == item["contractor_name"]).first():
+                    user = User(
+                        name=item["contractor_name"],
+                        role="contractor",
+                        password="password123",
+                        phone=item["contact"],
+                        specialty=item["type"].capitalize()
+                    )
+                    db.add(user)
+                    db.commit()
+                
+                listing = Listing(
+                    contractor_name=item["contractor_name"],
+                    type=item["type"],
+                    title=item["title"],
+                    contact=item["contact"],
+                    description=item["description"],
+                    price=item["price"],
+                    extra_fields=item["extra_fields"],
+                    lat=item["lat"],
+                    lng=item["lng"]
+                )
+                db.add(listing)
+            db.commit()
+            print("✅ Seeding completed.")
+    except Exception as e:
+        print(f"⚠️ Seeding warn: {e}")
+    finally:
+        db.close()
+
+_seed_db()
+
 
 # Dependency
 def get_db():
@@ -876,60 +961,6 @@ def root():
 # 🔑 AUTH & ROLE ENDPOINTS
 # ======================================================
 
-# Mock user "database"
-users_db = {}
-notifications_db = []
-listings_db = [
-    {
-        "id": 0,
-        "contractor_name": "AgroStore Alpha",
-        "type": "fertilizers",
-        "title": {"en": "Urea Gold Premium", "te": "యూరియా గోల్డ్ ప్రీమియం"},
-        "contact": "9000100020",
-        "description": {"en": "High nitrogen fertilizer for paddy and maize.", "te": "వరి మరియు మొక్కజొన్న కోసం అధిక నైట్రోజన్ ఎరువులు."},
-        "price": "₹350/50kg",
-        "extra_fields": {"stock": "500 bags", "composition": "N:P:K (46:0:0)"},
-        "lat": 17.3850,
-        "lng": 78.4867
-    },
-    {
-        "id": 1,
-        "contractor_name": "Farmer's Friend Shop",
-        "type": "fertilizers",
-        "title": {"en": "DAP - Powerful Growth", "te": "డిఎపి - శక్తివంతమైన వృద్ధి"},
-        "contact": "9000100021",
-        "description": {"en": "Essential phosphorus for root development.", "te": "వేరు అభివృద్ధికి అవసరమైన భాస్వరం."},
-        "price": "₹1350/50kg",
-        "extra_fields": {"stock": "200 bags", "composition": "N:P:K (18:46:0)"},
-        "lat": 17.4000,
-        "lng": 78.5000
-    },
-    {
-        "id": 2,
-        "contractor_name": "Kisan Seva Center",
-        "type": "fertilizers",
-        "title": {"en": "Organic Compost Plus", "te": "సేంద్రీయ కంపోస్ట్ ప్లస్"},
-        "contact": "9000100022",
-        "description": {"en": "Pure organic manure for sustainable farming.", "te": "స్థిరమైన వ్యవసాయం కోసం స్వచ్ఛమైన సేంద్రీయ ఎరువు."},
-        "price": "₹450/40kg",
-        "extra_fields": {"stock": "1000 bags", "origin": "Eco-Friendly"},
-        "lat": 17.3700,
-        "lng": 78.4500
-    },
-    {
-        "id": 3,
-        "contractor_name": "Ramu Tractors",
-        "type": "machinery",
-        "title": {"en": "Mahindra Arjun 605", "te": "మహీంద్రా అర్జున్ 605"},
-        "contact": "9000100023",
-        "description": {"en": "Heavy duty tractor for plowing and transport.", "te": "దున్నడం మరియు రవాణా కోసం భారీ ట్రాక్టర్."},
-        "price": "₹800/hr",
-        "extra_fields": {"model": "2023", "hp": "57 HP"},
-        "lat": 17.4200,
-        "lng": 78.4800
-    }
-]
-inquiries_db = []
 
 @app.post("/register")
 async def register(user: UserCreate, db: Session = Depends(get_db)):
