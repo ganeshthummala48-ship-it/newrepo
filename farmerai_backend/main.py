@@ -286,16 +286,30 @@ async def startup_event():
         import tensorflow as tf
         import numpy as np
         try:
-            # Use native Keras 3 loading for better compatibility
-            disease_model = keras.models.load_model(MODEL_PATH, compile=False)
+            # ── Compatibility shim ──────────────────────────────────────────
+            # The model was saved with a Keras version that stores
+            # `quantization_config` in the Dense layer config.  Older Keras
+            # builds don't recognise that key and raise an error.  We subclass
+            # Dense to silently absorb the unknown kwarg so loading succeeds
+            # regardless of the exact Keras minor version on the server.
+            from keras import layers as _keras_layers
+
+            class _CompatDense(_keras_layers.Dense):
+                def __init__(self, *args, quantization_config=None, **kwargs):
+                    super().__init__(*args, **kwargs)
+
+            with keras.utils.custom_object_scope({"Dense": _CompatDense}):
+                disease_model = keras.models.load_model(MODEL_PATH, compile=False)
+
             print("✅ Base disease detection model loaded")
-            
+
             # WARM-UP: Ensure first prediction is fast
             dummy_input = np.zeros((1, 224, 224, 3))
             disease_model.predict(dummy_input, verbose=0)
             print("⚡ Disease model warmed up and ready")
         except Exception as e:
             print(f"⚠️ Warning: Model loading failed: {e}")
+
     else:
         print("❌ Error: plant_disease_model.h5 not found after download check.")
 
