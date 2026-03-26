@@ -1,7 +1,8 @@
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 tensorflow-cpu==2.18.0
-keras==3.15.0
+# keras is bundled with tensorflow>=2.16; pin to a version that actually exists on PyPI
+keras==3.8.0
 h5py==3.11.0
 scipy==1.13.1
 numpy<2.0.0
@@ -12,3 +13,5 @@ scikit-learn==1.6.1
 httpx==0.27.0
 python-multipart==0.0.9
 sqlalchemy==2.0.30
+# Required by download_model.py to fetch the plant-disease model from Kaggle
+kaggle>=1.6.0

@@ -2,11 +2,14 @@ services:
   - type: web
     name: farmerai-backend
     env: python
-    rootDir: farmerai_backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Declare Python 3.11.9 at the service level (Render's native runtime key)
+    runtime: python-3.11.9
+    buildCommand: pip install --upgrade pip && pip install -r farmerai_backend/requirements.txt
+    startCommand: cd farmerai_backend && python -m uvicorn main:app --host 0.0.0.0 --port 8000
     envVars:
-      - key: GROQ_API_KEY
-        sync: false   # Set manually in Render dashboard
       - key: PYTHON_VERSION
-        value: 3.10.13
+        value: "3.11.9"
+      - key: KERAS_BACKEND
+        value: tensorflow
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "2"
