@@ -5,13 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'package:hive/hive.dart';
 
 import 'package:farmer_ai/screens/disease_result_screen.dart';
 import 'package:farmer_ai/screens/history_screen.dart';
+import 'package:farmer_ai/screens/disease_gallery_screen.dart';
+import '../widgets/voice_wrapper.dart';
+import 'package:provider/provider.dart';
+import '../providers/locale_provider.dart';
 
 class DiseaseScreen extends StatefulWidget {
-  const DiseaseScreen({super.key});
+  final bool isEmbedded;
+  const DiseaseScreen({super.key, this.isEmbedded = false});
 
   @override
   State<DiseaseScreen> createState() => _DiseaseScreenState();
@@ -59,7 +65,9 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-disease');
 
     try {
+      final lang = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
       final request = http.MultipartRequest('POST', uri);
+      request.fields['lang'] = lang;
       request.files.add(
         await http.MultipartFile.fromPath('file', imageFile!.path),
       );
@@ -138,30 +146,37 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
   // 🧱 UI
   @override
   Widget build(BuildContext context) {
+    String voiceContent = AppLocalizations.of(context)!.diseaseDetection + ". " + AppLocalizations.of(context)!.uploadLeafHint;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Disease Detection'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history_rounded),
-            tooltip: 'Prediction History',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const HistoryScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.defaultPadding),
-        child: Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8.0),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              title: Text(AppLocalizations.of(context)!.diseaseDetection),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.history_rounded),
+                  tooltip: AppLocalizations.of(context)!.predictionHistory,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+      body: VoiceWrapper(
+        screenTitle: AppLocalizations.of(context)!.diseaseDetection,
+        textToRead: voiceContent,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          child: Column(
+            children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Text(
-                'Upload a clear picture of the affected crop leaf to detect diseases instantly.',
+                AppLocalizations.of(context)!.uploadLeafHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, color: Colors.black87),
               ),
@@ -197,7 +212,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Tap buttons below to select image',
+                            AppLocalizations.of(context)!.selectImageHint,
                             style: TextStyle(color: Colors.grey.shade600),
                           ),
                         ],
@@ -221,7 +236,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                         ? null
                         : () => pickImage(ImageSource.camera),
                     icon: const Icon(Icons.camera_alt_rounded),
-                    label: const Text('Camera'),
+                    label: Text(AppLocalizations.of(context)!.camera),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -237,7 +252,7 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                         ? null
                         : () => pickImage(ImageSource.gallery),
                     icon: const Icon(Icons.photo_library_rounded),
-                    label: const Text('Gallery'),
+                    label: Text(AppLocalizations.of(context)!.gallery),
                   ),
                 ),
               ],
@@ -259,15 +274,45 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
-                        'Analyze Leaf',
-                        style: TextStyle(fontSize: 16),
+                    : Text(
+                        AppLocalizations.of(context)!.analyzeLeaf,
+                        style: const TextStyle(fontSize: 16),
                       ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // 📖 Browse Diseases Guide Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DiseaseGalleryScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.menu_book_rounded),
+                label: Text(AppLocalizations.of(context)!.browseGuide),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppConstants.primaryColor,
+                  side: const BorderSide(color: AppConstants.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppConstants.defaultBorderRadius,
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ),
+    ),
     );
   }
 }

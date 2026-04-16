@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/constants.dart';
+import '../widgets/voice_wrapper.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key}); 
@@ -13,9 +15,14 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text('Prediction History'),
+        title: Text(AppLocalizations.of(context)!.predictionHistory),
       ),
-      body: ValueListenableBuilder(
+      body: VoiceWrapper(
+        screenTitle: AppLocalizations.of(context)!.predictionHistory,
+        textToRead: historyBox.isEmpty
+            ? "You have no prediction history yet."
+            : "You have ${historyBox.length} past predictions. You can review them here.",
+        child: ValueListenableBuilder(
         valueListenable: historyBox.listenable(),
         builder: (context, Box box, _) {
           if (box.isEmpty) {
@@ -106,6 +113,7 @@ class HistoryScreen extends StatelessWidget {
           );
         },
       ),
+    ),
     );
   }
 

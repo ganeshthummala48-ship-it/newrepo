@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../widgets/voice_wrapper.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class CropRecommendationScreen extends StatefulWidget {
   final List<dynamic>? data;
@@ -65,8 +67,14 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen>
       appBar: AppBar(
         title: const Text('Top Recommended Crops'),
       ),
-      body: predictions.isEmpty 
-      ? Center(
+      body: VoiceWrapper(
+        screenTitle: AppLocalizations.of(context)!.cropRecommendation,
+        textToRead: predictions.isEmpty 
+            ? "No recommendations found." 
+            : "Found ${predictions.length} recommended crops. " + 
+              predictions.map((p) => "${p['crop']} with ${p['confidence'].toStringAsFixed(0)} percent confidence.").join(". "),
+        child: predictions.isEmpty 
+        ? Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -95,6 +103,7 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen>
                 const SizedBox(height: 12),
                 ...predictions.map(_cropCard),
               ],
+            ),
             ),
           ),
         ),

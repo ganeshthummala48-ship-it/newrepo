@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../utils/constants.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../widgets/voice_wrapper.dart';
 
 class DiseaseResultScreen extends StatelessWidget {
   final String disease;
@@ -41,9 +44,17 @@ class DiseaseResultScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Analysis Result"),
+        title: Text(AppLocalizations.of(context)!.analysisResult),
       ),
-      body: SingleChildScrollView(
+      body: VoiceWrapper(
+        screenTitle: AppLocalizations.of(context)!.analysisResult,
+        textToRead: "${AppLocalizations.of(context)!.analysisResult}. "
+            "${AppLocalizations.of(context)!.detectedDisease}: $disease, "
+            "${AppLocalizations.of(context)!.predictionConfidence}: ${confidence.toStringAsFixed(1)}%. "
+            "${AppLocalizations.of(context)!.recommendedAction}: $recommendation. "
+            "${showTreatment ? '${AppLocalizations.of(context)!.treatmentPlan}: ${treatment!['pesticide']}, ${treatment!['organic']}, precaution: ${treatment!['precaution']}. ' : ''}"
+            "${aiExplanation != null && aiExplanation!.isNotEmpty ? '${AppLocalizations.of(context)!.aiAdvice}: $aiExplanation' : ''}",
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppConstants.defaultPadding),
         child: Column(
           children: [
@@ -57,10 +68,10 @@ class DiseaseResultScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Center(
+                    Center(
                       child: Text(
-                        "🌿 Crop Disease Prediction",
-                        style: TextStyle(
+                        AppLocalizations.of(context)!.cropDiseasePrediction,
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: AppConstants.primaryColor,
@@ -71,9 +82,9 @@ class DiseaseResultScreen extends StatelessWidget {
                     Center(child: _buildLottie(disease)),
                     const SizedBox(height: 24),
                     
-                    const Text(
-                      "Detected Disease",
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    Text(
+                       AppLocalizations.of(context)!.detectedDisease,
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -83,9 +94,9 @@ class DiseaseResultScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    const Text(
-                      "Prediction Confidence",
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    Text(
+                       AppLocalizations.of(context)!.predictionConfidence,
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -115,9 +126,9 @@ class DiseaseResultScreen extends StatelessWidget {
 
                     const SizedBox(height: 24),
 
-                    const Text(
-                      "Recommended Action",
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    Text(
+                       AppLocalizations.of(context)!.recommendedAction,
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -147,9 +158,9 @@ class DiseaseResultScreen extends StatelessWidget {
                         children: [
                           const Icon(Icons.medical_services_rounded, color: AppConstants.primaryColor),
                           const SizedBox(width: 8),
-                          const Text(
-                            "Treatment Plan",
-                            style: TextStyle(
+                          Text(
+                             AppLocalizations.of(context)!.treatmentPlan,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: AppConstants.primaryColor,
@@ -206,9 +217,9 @@ class DiseaseResultScreen extends StatelessWidget {
                         children: [
                           const Icon(Icons.smart_toy_rounded, color: Colors.blue),
                           const SizedBox(width: 8),
-                          const Text(
-                            "AI Expert Advice",
-                            style: TextStyle(
+                          Text(
+                             AppLocalizations.of(context)!.aiAdvice,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
@@ -217,9 +228,11 @@ class DiseaseResultScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        aiExplanation!,
-                        style: const TextStyle(fontSize: 15, height: 1.5),
+                      MarkdownBody(
+                        data: aiExplanation!,
+                        styleSheet: MarkdownStyleSheet(
+                          p: const TextStyle(fontSize: 15, height: 1.5),
+                        ),
                       ),
                     ],
                   ),
@@ -235,11 +248,9 @@ class DiseaseResultScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.green.shade200),
               ),
-              child: const Text(
-                "ℹ️ Note:\nThis prediction is generated using an AI model. "
-                "Pesticide usage should follow government-approved guidelines. "
-                "For severe cases, consult an agricultural expert.",
-                style: TextStyle(fontSize: 13, color: Colors.black87),
+              child: Text(
+                 AppLocalizations.of(context)!.aiNotes,
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
               ),
             ),
             const SizedBox(height: 30),
@@ -250,13 +261,14 @@ class DiseaseResultScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.add_a_photo_rounded),
-                label: const Text("Analyze Another Image"),
+                label: Text(AppLocalizations.of(context)!.analyzeAnother),
               ),
             ),
             const SizedBox(height: 20),
           ],
         ),
       ),
+    ),
     );
   }
 

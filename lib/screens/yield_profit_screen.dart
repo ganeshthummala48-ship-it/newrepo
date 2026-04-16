@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../widgets/voice_wrapper.dart';
 
 class YieldProfitScreen extends StatefulWidget {
   const YieldProfitScreen({super.key});
@@ -40,6 +42,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
     try {
       // 1. Get Yield Prediction
       final yieldUri = Uri.parse('${AppConstants.baseUrl}/predict-yield');
+      final lang = Localizations.localeOf(context).languageCode;
       final yieldRes = await http.post(
         yieldUri,
         headers: {'Content-Type': 'application/json'},
@@ -48,6 +51,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
           'soil': selectedSoil,
           'rainfall': selectedRainfall,
           'land_size': double.tryParse(_landSizeController.text) ?? 1.0,
+          'lang': lang,
         }),
       );
 
@@ -69,11 +73,15 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
 
         if (profitRes.statusCode == 200) {
           profitData = jsonDecode(profitRes.body);
+        } else {
+          final errorBody = jsonDecode(profitRes.body);
+          throw Exception(errorBody['detail'] ?? 'Profit calculation failed');
         }
       } else {
+        final errorBody = jsonDecode(yieldRes.body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${yieldRes.statusCode}')),
+            SnackBar(content: Text('${AppLocalizations.of(context)!.serverError}: ${errorBody['detail'] ?? yieldRes.statusCode}')),
           );
         }
       }
@@ -81,7 +89,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to connect')));
+        ).showSnackBar(SnackBar(content: Text("${AppLocalizations.of(context)!.connectionError}: $e")));
       }
     }
 
@@ -90,13 +98,27 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String voiceContent = AppLocalizations.of(context)!.yieldPredictor + ". ";
+    if (loading) {
+      voiceContent += "Calculating your expected yield and profit.";
+    } else if (yieldData != null && profitData != null) {
+      voiceContent += "Expected yield is ${yieldData!['expected_yield'] ?? 'unknown'} tons. " +
+          "Predicted profit is ${profitData!['profit'] ?? 'unknown'} rupees. " +
+          (yieldData!['explanation'] ?? 'Calculations based on area and soil.').replaceAll('*', '');
+    } else {
+      voiceContent += "Enter your crop, land size and costs to predict your profit.";
+    }
+
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      appBar: AppBar(title: const Text('Yield & Profit Predictor')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.defaultPadding),
-        child: Column(
-          children: [
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.yieldPredictor)),
+      body: VoiceWrapper(
+        screenTitle: AppLocalizations.of(context)!.yieldPredictor,
+        textToRead: voiceContent,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          child: Column(
+            children: [
             _buildInputForm(),
             const SizedBox(height: 20),
             SizedBox(
@@ -106,7 +128,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
                 onPressed: loading ? null : calculate,
                 child: loading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Calculate'),
+                    : Text(AppLocalizations.of(context)!.calculate),
               ),
             ),
             const SizedBox(height: 20),
@@ -114,6 +136,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -128,14 +151,14 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
         children: [
           TextField(
             controller: _cropController,
-            decoration: const InputDecoration(
-              labelText: 'Crop Type (e.g., Rice)',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.cropType + ' (e.g., Rice)',
             ),
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             value: selectedSoil,
-            decoration: const InputDecoration(labelText: 'Soil Type'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.soilType),
             items: soils
                 .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                 .toList(),
@@ -144,7 +167,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             value: selectedRainfall,
-            decoration: const InputDecoration(labelText: 'Rainfall'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.rainfallLevel),
             items: rainfalls
                 .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                 .toList(),
@@ -153,8 +176,8 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
           const SizedBox(height: 10),
           TextField(
             controller: _landSizeController,
-            decoration: const InputDecoration(
-              labelText: 'Land Size (Hectares)',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.landSize,
             ),
             keyboardType: TextInputType.number,
           ),
@@ -191,12 +214,12 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Expected Yield: ${yieldData!['expected_yield']} ${yieldData!['unit']}',
+            'Expected Yield: ${yieldData!['expected_yield'] ?? '--'} ${yieldData!['unit'] ?? ''}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Text(
-            'AI Analysis: ${yieldData!['explanation']}',
+            'AI Analysis: ${yieldData!['explanation'] ?? 'Analysis not available.'}',
             style: const TextStyle(color: Colors.grey),
           ),
           const Divider(height: 30),

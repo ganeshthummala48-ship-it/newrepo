@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'crop_recommendation_screen.dart';
+import '../widgets/voice_wrapper.dart';
 
 class CropScreen extends StatefulWidget {
-  const CropScreen({super.key});
+  final bool isEmbedded;
+  const CropScreen({super.key, this.isEmbedded = false});
 
   @override
   State<CropScreen> createState() => _CropScreenState();
@@ -28,6 +31,7 @@ class _CropScreenState extends State<CropScreen> {
     final uri = Uri.parse('${AppConstants.baseUrl}/recommend-crop');
 
     try {
+      final lang = Localizations.localeOf(context).languageCode;
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
@@ -35,6 +39,7 @@ class _CropScreenState extends State<CropScreen> {
           'soil': selectedSoil,
           'season': selectedSeason,
           'rainfall': selectedRainfall,
+          'lang': lang,
         }),
       );
 
@@ -74,19 +79,22 @@ class _CropScreenState extends State<CropScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Crop Recommendation'),
+      appBar: widget.isEmbedded ? null : AppBar(
+        title: Text(AppLocalizations.of(context)!.cropRecommendation),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 24.0, top: 8.0),
+      body: VoiceWrapper(
+        screenTitle: AppLocalizations.of(context)!.cropRecommendation,
+        textToRead: AppLocalizations.of(context)!.farmDetails + ". Enter your soil type, season and rainfall to get the best crop recommendations.",
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24.0, top: 8.0),
               child: Text(
-                'Provide your farm details to get AI-powered crop recommendations tailored to your conditions.',
-                style: TextStyle(fontSize: 15, color: Colors.black87, height: 1.4),
+                AppLocalizations.of(context)!.farmDetails,
+                style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.4),
               ),
             ),
             
@@ -123,7 +131,7 @@ class _CropScreenState extends State<CropScreen> {
                   const SizedBox(height: 24),
                   
                   _buildDropdownRow(
-                    label: 'Soil Type',
+                    label: AppLocalizations.of(context)!.soilType,
                     icon: Icons.grass_rounded,
                     value: selectedSoil,
                     items: soils,
@@ -132,7 +140,7 @@ class _CropScreenState extends State<CropScreen> {
                   const SizedBox(height: 20),
                   
                   _buildDropdownRow(
-                    label: 'Season',
+                    label: AppLocalizations.of(context)!.season,
                     icon: Icons.wb_sunny_rounded,
                     value: selectedSeason,
                     items: seasons,
@@ -141,7 +149,7 @@ class _CropScreenState extends State<CropScreen> {
                   const SizedBox(height: 20),
                   
                   _buildDropdownRow(
-                    label: 'Rainfall Level',
+                    label: AppLocalizations.of(context)!.rainfallLevel,
                     icon: Icons.water_drop_rounded,
                     value: selectedRainfall,
                     items: rainfalls,
@@ -169,15 +177,16 @@ class _CropScreenState extends State<CropScreen> {
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
-                        'Get Recommendation',
-                        style: TextStyle(fontSize: 16),
+                    : Text(
+                        AppLocalizations.of(context)!.getRecommendation,
+                        style: const TextStyle(fontSize: 16),
                       ),
               ),
             ),
           ],
         ),
       ),
+    ),
     );
   }
 

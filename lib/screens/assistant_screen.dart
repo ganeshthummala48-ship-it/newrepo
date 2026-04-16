@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
 import '../services/ai_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import '../services/voice_service.dart';
+import '../widgets/voice_wrapper.dart';
+import 'package:provider/provider.dart';
+import '../providers/locale_provider.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
@@ -15,6 +20,89 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   List<Map<String, String>> messages = [];
   bool isLoading = false;
+  bool isListening = false;
+  String selectedLanguage = "English";
+
+  List<String> get languages {
+    return [
+      "English",
+      "Hindi",
+      "Telugu",
+      "Marathi",
+      "Tamil",
+      "Bengali",
+      "Gujarati",
+      "Kannada",
+      "Malayalam",
+      "Punjabi",
+      "Odia"
+    ];
+  }
+
+  String _getLanguageFromCode(String code) {
+    switch (code) {
+      case 'te': return "Telugu";
+      case 'hi': return "Hindi";
+      case 'mr': return "Marathi";
+      case 'ta': return "Tamil";
+      case 'bn': return "Bengali";
+      case 'gu': return "Gujarati";
+      case 'kn': return "Kannada";
+      case 'ml': return "Malayalam";
+      case 'pa': return "Punjabi";
+      case 'or': return "Odia";
+      default: return "English";
+    }
+  }
+
+  String _getCodeFromLanguage(String lang) {
+     switch (lang) {
+      case 'Telugu': return "te";
+      case 'Hindi': return "hi";
+      case 'Marathi': return "mr";
+      case 'Tamil': return "ta";
+      case 'Bengali': return "bn";
+      case 'Gujarati': return "gu";
+      case 'Kannada': return "kn";
+      case 'Malayalam': return "ml";
+      case 'Punjabi': return "pa";
+      case 'Odia': return "or";
+      default: return "en";
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    VoiceService.init();
+  }
+
+  Future<void> _speak(String text) async {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    await VoiceService.speak(text, localeProvider.locale.languageCode);
+  }
+
+  Future<void> _listen() async {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    if (!isListening) {
+      setState(() => isListening = true);
+      final result = await VoiceService.listenForCommand(
+        localeProvider.locale.languageCode,
+        onPartialResult: (val) => setState(() {
+          _controller.text = val;
+        }),
+      );
+      if (mounted) {
+        setState(() {
+          isListening = false;
+          if (result.isNotEmpty) _controller.text = result;
+        });
+      }
+    } else {
+      setState(() => isListening = false);
+      await VoiceService.stopListening();
+    }
+  }
 
   Future<void> sendMessage() async {
     String question = _controller.text.trim();
@@ -29,19 +117,23 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     scrollToBottom();
 
     try {
-      // 🚀 Use AIService for Ollama
-      final answer = await AIService.getAIResponse(question);
+      final answer = await AIService.getAIResponse(
+        question,
+        language: selectedLanguage,
+      );
 
       setState(() {
         messages.add({"role": "ai", "text": answer});
       });
+      
+      // Auto-speak AI response if user preferred
+       _speak(answer);
+
     } catch (e) {
-      // 🔄 Fallback to Gemini if Ollama fails (optional, based on requirement)
-      // For now, we will show a descriptive error as per prompt "add AI assistant as ollama"
       setState(() {
         messages.add({
           "role": "ai",
-          "text": "Ollama Error: ${e.toString().replaceAll('Exception:', '')}",
+          "text": "AI Error: ${e.toString().replaceAll("Exception:", "")}",
         });
       });
     }
@@ -65,39 +157,77 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   Widget buildMessage(Map<String, String> message) {
     bool isUser = message["role"] == "user";
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        decoration: BoxDecoration(
-          gradient: isUser
-              ? AppConstants.primaryGradient
-              : const LinearGradient(colors: [Colors.white, Colors.white]),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isUser ? 20 : 0),
-            bottomRight: Radius.circular(isUser ? 0 : 20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isUser)
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.green,
+              child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
             ),
-          ],
-        ),
-        child: Text(
-          message["text"] ?? "",
-          style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
-            height: 1.4,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: isUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isUser ? Colors.green.shade100 : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: message["role"] == "ai"
+                      ? MarkdownBody(
+                          data: message["text"] ?? "",
+                          selectable: true,
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(fontSize: 15, height: 1.4),
+                            listBullet: const TextStyle(fontSize: 15),
+                          ),
+                        )
+                      : Text(
+                          message["text"] ?? "",
+                          style: const TextStyle(fontSize: 15, height: 1.4),
+                        ),
+                ),
+                if (!isUser)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.volume_up,
+                      size: 20,
+                      color: Colors.green,
+                    ),
+                    onPressed: () => _speak(message["text"] ?? ""),
+                  ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          if (isUser)
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.blue,
+              child: Icon(Icons.person, size: 18, color: Colors.white),
+            ),
+        ],
       ),
     );
   }
@@ -105,88 +235,116 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Chat with AI")),
-      body: Column(
+      backgroundColor: const Color(0xfff8f9fa),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.askFarmerAI),
+        actions: [
+          DropdownButton<String>(
+            value: _getLanguageFromCode(Provider.of<LocaleProvider>(context).locale.languageCode),
+            icon: const Icon(Icons.language, color: Colors.white),
+            underline: Container(),
+            dropdownColor: Colors.green,
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                Provider.of<LocaleProvider>(context, listen: false).setLocale(Locale(_getCodeFromLanguage(newValue)));
+                setState(() {
+                  selectedLanguage = newValue;
+                });
+              }
+            },
+            items: languages.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value, style: const TextStyle(color: Colors.white)),
+              );
+            }).toList(),
+          ),
+          const SizedBox(width: 10),
+        ],
+      ),
+      body: VoiceWrapper(
+        screenTitle: AppLocalizations.of(context)!.askFarmerAI,
+        textToRead: AppLocalizations.of(context)!.namasteAI + " " + AppLocalizations.of(context)!.askAnything,
+        child: Column(
+          children: [
+            Expanded(
+              child: messages.isEmpty
+                  ? _buildWelcomeMessage()
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) =>
+                          buildMessage(messages[index]),
+                    ),
+            ),
+            if (isLoading) _buildLoading(),
+            _buildInputArea(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWelcomeMessage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(AppConstants.defaultPadding),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                return buildMessage(messages[index]);
-              },
+          const Icon(Icons.eco, size: 80, color: Colors.green),
+          const SizedBox(height: 16),
+          Text(
+            AppLocalizations.of(context)!.namasteAI,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              AppLocalizations.of(context)!.askAnything,
+              textAlign: TextAlign.center,
             ),
           ),
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return const Padding(
+      padding: EdgeInsets.all(8.0),
+      child: CircularProgressIndicator(strokeWidth: 2),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(color: Colors.white),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              isListening ? Icons.mic : Icons.mic_none,
+              color: isListening ? Colors.red : Colors.green,
+            ),
+            onPressed: _listen,
+          ),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.askIn(selectedLanguage),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
               ),
+              onSubmitted: (_) => sendMessage(),
             ),
-          Container(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              bottom: MediaQuery.of(context).padding.bottom + 16,
-              top: 16,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: "Type a message...",
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: AppConstants.primaryGradient,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send_rounded, color: Colors.white),
-                    onPressed: sendMessage,
-                  ),
-                ),
-              ],
-            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.send, color: Colors.green),
+            onPressed: sendMessage,
           ),
         ],
       ),

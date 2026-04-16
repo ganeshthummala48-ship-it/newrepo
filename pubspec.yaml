@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.8
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -17,13 +17,35 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   google_fonts: ^8.0.2
+  speech_to_text: any
+  flutter_tts: any
+  flutter_markdown: any
+  geolocator: ^11.0.0
+  geocoding: ^3.0.0
+  url_launcher: ^6.2.0
+  google_maps_flutter: ^2.5.3
+  flutter_local_notifications: ^17.0.0
+  provider: any
+  intl: any
+  flutter_localizations:
+    sdk: flutter
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/applogo.png"
+  min_sdk_android: 21
 
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - assets/lottie/
     - assets/crops/
+    - assets/products/
+    - assets/icon/
