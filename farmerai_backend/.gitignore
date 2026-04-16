@@ -4,5 +4,5 @@ __pycache__/
 # *.pkl removed to allow model deployment
 platform-tools/
 *.lnk
-*.db
+# *.db unignored to allow demo data deployment
 .pytest_cache/
