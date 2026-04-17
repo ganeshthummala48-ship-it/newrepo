@@ -7,6 +7,7 @@ import 'screens/registration_screen.dart';
 import 'screens/contractor_dashboard.dart';
 import 'screens/contracts_screen.dart';
 import 'screens/machinery_screen.dart';
+import 'screens/splash_screen.dart';
 import 'utils/constants.dart';
 import 'services/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -28,11 +29,11 @@ void main() async {
   // 🔔 Initialize local notifications
   await NotificationService.init();
 
-  runApp(const FarmerAIApp());
+  runApp(const AgriNovaApp());
 }
 
-class FarmerAIApp extends StatelessWidget {
-  const FarmerAIApp({super.key});
+class AgriNovaApp extends StatelessWidget {
+  const AgriNovaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +49,7 @@ class FarmerAIApp extends StatelessWidget {
       child: Consumer<LocaleProvider>(
         builder: (context, localeProvider, child) {
           return MaterialApp(
-            title: 'FarmerAI',
+            title: 'AgriNova',
             debugShowCheckedModeBanner: false,
             locale: localeProvider.locale,
             localizationsDelegates: [
@@ -143,12 +144,9 @@ class FarmerAIApp extends StatelessWidget {
               '/contractor': (_) => const ContractorDashboard(),
               '/contracts': (_) => const ContractsScreen(),
               '/machinery': (_) => const MachineryScreen(),
+              '/splash': (_) => const SplashScreen(),
             },
-            home: profileDone
-                ? (box.get('role') == 'contractor'
-                    ? const ContractorDashboard()
-                    : const HomeScreen())
-                : const LoginScreen(),
+            home: const SplashScreen(),
           );
         },
       ),

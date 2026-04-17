@@ -97,6 +97,9 @@ class VoiceService {
     Function(String)? onPartialResult,
     Duration timeout = const Duration(seconds: 5),
   }) async {
+    // 🛑 Ensure we stop speaking before we start listening
+    await stop();
+    
     final completer = Completer<String>();
 
     bool available = await _speech.initialize(

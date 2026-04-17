@@ -142,7 +142,7 @@ def _seed_db():
     db = SessionLocal()
     try:
         if db.query(User).filter(User.role == "contractor").count() == 0:
-            print("🌱 Seeding initial contractor data...")
+            print("Seeding initial contractor data...")
             mock_listings = [
                 {
                     "contractor_name": "AgroStore Alpha",
@@ -214,9 +214,9 @@ def _seed_db():
                 )
                 db.add(listing)
             db.commit()
-            print("✅ Seeding completed.")
+            print("Seeding completed.")
     except Exception as e:
-        print(f"⚠️ Seeding warn: {e}")
+        print(f"Seeding warning: {e}")
     finally:
         db.close()
 
@@ -331,8 +331,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ======================================================
-# 🧠 DISEASE DETECTION MODEL FILES
+# DISEASE DETECTION MODEL FILES
 # ======================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -357,14 +356,14 @@ async def startup_event():
     global disease_model
     import tensorflow as tf
     import keras
-    print(f"🌅 Server starting: Pre-loading models... [TF={tf.__version__}, Keras={keras.__version__}]")
+    print(f"Server starting: Pre-loading models... [TF={tf.__version__}, Keras={keras.__version__}]")
     
     # 1. Ensure disease model is present
     try:
         import download_model
         download_model.download_model_if_missing()
     except Exception as e:
-        print(f"⚠️ Warning: Model download check failed: {e}")
+        print(f"Warning: Model download check failed: {e}")
 
     # 2. Pre-load the base disease detection model
     if os.path.exists(MODEL_PATH):
@@ -386,20 +385,20 @@ async def startup_event():
             with keras.utils.custom_object_scope({"Dense": _CompatDense}):
                 disease_model = keras.models.load_model(MODEL_PATH, compile=False)
 
-            print("✅ Base disease detection model loaded")
+            print("Base disease detection model loaded")
 
             # WARM-UP: Ensure first prediction is fast
             dummy_input = np.zeros((1, 224, 224, 3))
             disease_model.predict(dummy_input, verbose=0)
-            print("⚡ Disease model warmed up and ready")
+            print("Disease model warmed up and ready")
         except Exception as e:
-            print(f"⚠️ Warning: Model loading failed: {e}")
+            print(f"Warning: Model loading failed: {e}")
 
     else:
-        print("❌ Error: plant_disease_model.h5 not found after download check.")
+        print("Error: plant_disease_model.h5 not found after download check.")
 
     # 3. Pre-load crop recommendation models
-    print("🌾 Pre-loading crop recommendation models...")
+    print("Pre-loading crop recommendation models...")
     get_crop_recommendation_models()
 
 
@@ -417,11 +416,11 @@ def get_specialized_model(crop_name: str):
             import tensorflow as tf
             try:
                 specialized_models[crop_name] = keras.models.load_model(spec_path, compile=False)
-                print(f"✅ Specialized model for {crop_name} loaded from {spec_path}")
+                print(f"Specialized model for {crop_name} loaded from {spec_path}")
             except Exception as e:
-                print(f"⚠️ Warning: Could not load specialized model for {crop_name}: {e}")
+                print(f"Warning: Could not load specialized model for {crop_name}: {e}")
         else:
-            print(f"ℹ️ No specialized model file for {crop_name}, using base model fallback logic.")
+            print(f"No specialized model file for {crop_name}, using base model fallback logic.")
             specialized_models[crop_name] = None # Will trigger fallback to base model labels
     return specialized_models.get(crop_name)
 
@@ -436,11 +435,10 @@ if os.path.exists(SPECIALIZED_TREATMENTS_PATH):
     with open(SPECIALIZED_TREATMENTS_PATH, "r", encoding="utf-8") as f:
         spec_treatments = json.load(f)
         all_treatments.update(spec_treatments)
-        print("✅ Specialized treatments merged")
+        print("Specialized treatments merged")
 
 
-# ======================================================
-# 🌾 CROP RECOMMENDATION MODEL (LAZY LOADING)
+# CROP RECOMMENDATION MODEL (LAZY LOADING)
 # ======================================================
 
 CROP_MODEL_PATH = os.path.join(BASE_DIR, "crop_model.pkl")
@@ -465,9 +463,9 @@ def get_crop_recommendation_models():
             season_encoder = joblib.load(SEASON_ENCODER_PATH)
             rainfall_encoder = joblib.load(RAINFALL_ENCODER_PATH)
             crop_encoder = joblib.load(CROP_ENCODER_PATH)
-            print("🌾 Crop recommendation model loaded")
+            print("Crop recommendation model loaded")
         except Exception as e:
-            print(f"⚠️ Warning: Could not load crop recommendation model: {e}")
+            print(f"Warning: Could not load crop recommendation model: {e}")
     return crop_model, soil_encoder, season_encoder, rainfall_encoder, crop_encoder
 
 
@@ -522,8 +520,7 @@ except Exception:
     state_districts = {}
 
 
-# ======================================================
-# 📸 DISEASE DETECTION ENDPOINT
+# DISEASE DETECTION ENDPOINT
 # ======================================================
 @app.post("/detect-disease")
 async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
@@ -559,7 +556,7 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
     else:
         crop_identified = raw_label
     
-    print(f"🎯 Hierarchical Stage 1: Crop Identified -> {crop_identified} (Conf: {confidence:.2f}%)")
+    print(f"Hierarchical Stage 1: Crop Identified -> {crop_identified} (Conf: {confidence:.2f}%)")
 
     # ──────────────────────────────────────────────────────────────────
     # 🎯 STAGE 2: SPECIALIZED DISEASE DETECTION
@@ -568,7 +565,7 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
     spec_model = get_specialized_model(crop_identified)
     
     if spec_model:
-        print(f"🚀 Running specialized deep-dive model for {crop_identified}...")
+        print(f"Running specialized deep-dive model for {crop_identified}...")
         spec_predictions = spec_model.predict(image_array_batch)
         # Note: In a real scenario, the spec_model would have its own label map.
         # For this architecture demonstration, we'll use the base prediction if spec_model is just a placeholder.
@@ -608,14 +605,14 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
         is_brown = (r > b) & (g > b) & (r > 0.3)
         organic_ratio = np.mean(is_green | is_brown)
         
-        print(f"🌿 Organic color ratio: {organic_ratio:.4f}")
+        print(f"Organic color ratio: {organic_ratio:.4f}")
         # Tightened threshold: must have significant green or yellowish-brown matter
         if organic_ratio < 0.25: 
             is_unknown = True
             rejection_reason = f"Non-leaf image detected (organic ratio={organic_ratio:.2f} < 0.25)"
 
     if is_unknown:
-        print(f"⚠️ Rejected as Unknown: {rejection_reason}")
+        print(f"Rejected as Unknown: {rejection_reason}")
         disease = "Unknown"
         treatment = None
 
@@ -624,7 +621,7 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
     recommendation_text = "Follow recommended agricultural practices" if disease != "Unknown" else "Please upload a clear, close-up photo of an affected plant leaf."
 
     if disease != "Unknown":
-        print(f"🤖 Calling Cohere for {disease} explanation (Crop: {crop_identified})...")
+        print(f"Calling Cohere for {disease} explanation (Crop: {crop_identified})...")
         prompt = f"""
         You are an expert agricultural scientist specialize in {crop_identified}.
 
@@ -644,11 +641,11 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
         Make the response professional and use Markdown formatting for readability.
 """
         ai_explanation = await call_cohere(prompt, lang=lang)
-        print(f"✅ Cohere response received: {'Success' if ai_explanation else 'Failed'}")
+        print(f"Cohere response received: {'Success' if ai_explanation else 'Failed'}")
 
     # Translate basic fields if language is not English
     if lang != 'en':
-        print(f"🤖 Translating basic fields to {LANG_NAMES.get(lang, 'English')}...")
+        print(f"Translating basic fields to {LANG_NAMES.get(lang, 'English')}...")
         trans_prompt = f"""
         Translate the following agricultural terms to {LANG_NAMES.get(lang, 'English')}.
         Respond ONLY with a valid JSON object with the keys "disease", "recommendation", and "treatment".
@@ -670,7 +667,7 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
                 if treatment and translated_data.get("treatment"):
                     treatment = translated_data.get("treatment")
         except Exception as e:
-            print(f"⚠️ Translation fallback failed: {e}")
+            print(f"Translation fallback failed: {e}")
 
     return {
         "disease": disease,
@@ -682,8 +679,7 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
     }
 
 
-# ======================================================
-# 🌾 CROP RECOMMENDATION ENDPOINT
+# CROP RECOMMENDATION ENDPOINT
 # ======================================================
 @app.post("/crop-rotation")
 async def crop_rotation(data: CropRotationRequest):
@@ -762,8 +758,7 @@ def recommend_crop(data: CropRequest):
         return {"error": str(e)}
 
 
-# ======================================================
-# 🤖 AI ASSISTANT ENDPOINT
+# AI ASSISTANT ENDPOINT
 # ======================================================
 
 @app.post("/ask_ai")
@@ -776,8 +771,7 @@ async def ask_ai(data: QuestionRequest):
     except Exception as e:
         return {"answer": f"Error: {str(e)}"}
 
-# ======================================================
-# 📈 ADVANCED ANALYTICS ENDPOINTS
+# ADVANCED ANALYTICS ENDPOINTS
 # ======================================================
 
 @app.post("/predict-yield")
@@ -913,13 +907,13 @@ async def get_negotiation_history(farmer_name: str):
                 "item": "Mahindra Arjun 555",
                 "status": "Accepted",
                 "price": "₹700/hr",
-                "date": "2026-03-10"
+                "date": "2026-04-16"
             },
             {
                 "item": "Sri Rama Labour Group",
                 "status": "Counter-Offer",
                 "price": "₹420/day",
-                "date": "2026-03-12"
+                "date": "2026-04-16"
             }
         ]
     }
@@ -932,6 +926,26 @@ async def get_districts(state: str):
 @app.get("/mandi-coordinates")
 async def get_mandi_coordinates():
     return mandi_coords
+
+
+@app.get("/commodities")
+async def get_commodities():
+    # Curated list based on common items found in the Mandi API (data.gov.in)
+    return {
+        "commodities": [
+            "Apple", "Banana", "Bitter gourd", "Bottle gourd", "Brinjal",
+            "Cabbage", "Capsicum", "Carrot", "Castor Seed", "Cauliflower",
+            "Chikoos(Sapota)", "Cluster beans", "Coriander(Leaves)", "Cotton",
+            "Cucumbar(Kheera)", "French Beans", "Garlic", "Ginger(Green)",
+            "Grapes", "Green Chilli", "Green Peas", "Groundnut",
+            "Guar Seed(Cluster Beans Seed)", "Lady's Finger", "Lemon", "Maize",
+            "Mango", "Mango(Raw-Ripe)", "Methi(Leaves)", "Mint(Pudina)",
+            "Mousambi(Sweet Lime)", "Onion", "Paddy", "Peas Wet",
+            "Pomegranate", "Potato", "Pumpkin", "Raddish", "Rice",
+            "Ridgeguard(Tori)", "Spinach", "Squash(Chappal Kadoo)", "Tomato",
+            "Wheat", "White Muesli"
+        ]
+    }
 
 
 
@@ -957,8 +971,7 @@ def root():
     }
 
 
-# ======================================================
-# 🔑 AUTH & ROLE ENDPOINTS
+# AUTH & ROLE ENDPOINTS
 # ======================================================
 
 

@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text('FarmerAI'),
+        title: const Text('AgriNova'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -113,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       body: VoiceWrapper(
         screenTitle: AppLocalizations.of(context)!.login,
-        textToRead: "Welcome to FarmerAI. Please login to continue. You can talk to the AI assistant once you are logged in.",
+        textToRead: "Welcome to AgriNova. Please login to continue. You can talk to the AI assistant once you are logged in.",
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),

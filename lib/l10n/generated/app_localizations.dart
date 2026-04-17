@@ -119,13 +119,13 @@ abstract class AppLocalizations {
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:
-  /// **'FarmerAI'**
+  /// **'AgriNova'**
   String get appName;
 
   /// No description provided for @welcome.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to FarmerAI! 🌾'**
+  /// **'Welcome to AgriNova! 🌾'**
   String get welcome;
 
   /// No description provided for @welcomeSubtitle.
@@ -287,7 +287,7 @@ abstract class AppLocalizations {
   /// No description provided for @askFarmerAI.
   ///
   /// In en, this message translates to:
-  /// **'Ask FarmerAI'**
+  /// **'Ask AgriNova'**
   String get askFarmerAI;
 
   /// No description provided for @yieldAndProfit.
@@ -665,7 +665,7 @@ abstract class AppLocalizations {
   /// No description provided for @riskAnalysis.
   ///
   /// In en, this message translates to:
-  /// **'FarmerAI Risk Analysis'**
+  /// **'AgriNova Risk Analysis'**
   String get riskAnalysis;
 
   /// No description provided for @liveWeather.
@@ -1049,7 +1049,7 @@ abstract class AppLocalizations {
   /// No description provided for @namasteAI.
   ///
   /// In en, this message translates to:
-  /// **'Namaste! I am your FarmerAI.'**
+  /// **'Namaste! I am your AgriNova.'**
   String get namasteAI;
 
   /// No description provided for @askAnything.

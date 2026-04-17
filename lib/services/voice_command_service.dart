@@ -18,14 +18,42 @@ class VoiceCommandResult {
   final Widget? screen;
   final String? routeName;
   final String screenLabel;
+  final bool isPop;
 
-  VoiceCommandResult({this.screen, this.routeName, required this.screenLabel});
+  VoiceCommandResult({
+    this.screen,
+    this.routeName,
+    required this.screenLabel,
+    this.isPop = false,
+  });
 }
 
 class VoiceCommandService {
   /// Map of keywords → screen builders and labels.
   /// Supports all Indian languages.
   static final List<_CommandEntry> _commands = [
+    _CommandEntry(
+      keywords: [
+        'back', 'go back', 'return', 'previous',
+        'वापस', 'पीछे', // Hindi
+        'వెనుకకు', 'వెనక్కి', // Telugu
+        'பின்னால்', 'திரும்பு', // Tamil
+        'ಹಿಂದೆ', 'ಮರಳಿ', // Kannada
+        'ফিরে', 'পেছনে', // Bengali
+        'मागे', 'परत', // Marathi
+        'પાછા', 'પરત', // Gujarati
+        'പുറകോട്ട്', 'മടക്കം', // Malayalam
+        'ਪਿੱਛੇ', 'ਵਾਪਸ', // Punjabi
+        'ପଛକୁ', 'ଫେରି', // Odia
+      ],
+      labels: {
+        'en': 'Back', 'hi': 'वापस', 'te': 'వెనుకకు',
+        'ta': 'பின்னால்', 'kn': 'ಹಿಂದೆ', 'bn': 'ফিরে',
+        'mr': 'मागे', 'gu': 'પાછા', 'ml': 'പുറകോട്ട്',
+        'pa': 'ਪਿੱਛੇ', 'or': 'ପଛକୁ',
+      },
+      isPop: true,
+    ),
     _CommandEntry(
       keywords: [
         'market', 'mandi', 'price', 'prices',
@@ -288,12 +316,31 @@ class VoiceCommandService {
             screen: cmd.builder != null ? cmd.builder!() : null,
             routeName: cmd.routeName,
             screenLabel: label,
+            isPop: cmd.isPop,
           );
         }
       }
     }
 
     return null;
+  }
+
+  /// Get a "navigating to" message in the profile language
+  static String getGoingBackMessage(String languageCode) {
+    final templates = {
+      'en': 'Going back',
+      'hi': 'वापस जा रहे हैं',
+      'te': 'వెనక్కి వెళ్తున్నాము',
+      'ta': 'பின்னால் செல்கிறோம்',
+      'kn': 'ಹಿಂದೆ ಹೋಗುತ್ತಿದ್ದೇವೆ',
+      'bn': 'ফিরে যাচ্ছি',
+      'mr': 'मागे जात आहोत',
+      'gu': 'પાછા જઈ રહ્યા છીએ',
+      'ml': 'പുറകോട്ട് പോകുന്നു',
+      'pa': 'ਵਾਪਸ ਜਾ ਰਹੇ ਹਾਂ',
+      'or': 'ପଛକୁ ଫେରୁଛୁ',
+    };
+    return templates[languageCode] ?? templates['en']!;
   }
 
   /// Get a "navigating to" message in the profile language
@@ -349,11 +396,13 @@ class _CommandEntry {
   final Map<String, String> labels;
   final Widget Function()? builder;
   final String? routeName;
+  final bool isPop;
 
   _CommandEntry({
     required this.keywords,
     required this.labels,
     this.builder,
     this.routeName,
+    this.isPop = false,
   });
 }

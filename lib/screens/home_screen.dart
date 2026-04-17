@@ -89,7 +89,7 @@ class HomeScreen extends StatelessWidget {
                 titlePadding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 title: const Text(
-                  'FarmerAI',
+                  'AgriNova',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,

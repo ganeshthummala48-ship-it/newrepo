@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
 import '../l10n/generated/app_localizations.dart';
+import '../services/api_service.dart';
 import '../widgets/voice_wrapper.dart';
 
 class YieldProfitScreen extends StatefulWidget {
@@ -13,18 +14,8 @@ class YieldProfitScreen extends StatefulWidget {
 }
 
 class _YieldProfitScreenState extends State<YieldProfitScreen> {
-  final TextEditingController _cropController = TextEditingController(
-    text: 'Rice',
-  );
-  final TextEditingController _landSizeController = TextEditingController(
-    text: '1.0',
-  );
-  final TextEditingController _priceController = TextEditingController(
-    text: '30000',
-  );
-  final TextEditingController _costController = TextEditingController(
-    text: '15000',
-  );
+  String selectedCrop = 'Rice';
+  List<String> commodities = ['Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane', 'Tomato', 'Potato'];
 
   String selectedSoil = 'Black';
   String selectedRainfall = 'Medium';
@@ -47,7 +38,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
         yieldUri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'crop': _cropController.text.trim(),
+          'crop': selectedCrop,
           'soil': selectedSoil,
           'rainfall': selectedRainfall,
           'land_size': double.tryParse(_landSizeController.text) ?? 1.0,
@@ -64,7 +55,7 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
           profitUri,
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'crop': _cropController.text.trim(),
+            'crop': selectedCrop,
             'yield_amount': yieldData!['expected_yield'],
             'market_price': double.tryParse(_priceController.text) ?? 0,
             'cost': double.tryParse(_costController.text) ?? 0,
@@ -95,6 +86,32 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
 
     if (mounted) setState(() => loading = false);
   }
+
+  @override
+  void initState() {
+    super.initState();
+    loadCommodities();
+  }
+
+  Future<void> loadCommodities() async {
+    try {
+      final list = await ApiService.fetchCommodities();
+      if (list.isNotEmpty && mounted) {
+        setState(() {
+          commodities = list;
+          if (!commodities.contains(selectedCrop)) {
+            selectedCrop = commodities.contains('Rice') ? 'Rice' : commodities.first;
+          }
+        });
+      }
+    } catch (e) {
+      print('YieldProfitScreen: Error loading commodities: $e');
+    }
+  }
+
+  final TextEditingController _landSizeController = TextEditingController(text: '1.0');
+  final TextEditingController _priceController = TextEditingController(text: '30000');
+  final TextEditingController _costController = TextEditingController(text: '15000');
 
   @override
   Widget build(BuildContext context) {
@@ -149,11 +166,16 @@ class _YieldProfitScreenState extends State<YieldProfitScreen> {
       ),
       child: Column(
         children: [
-          TextField(
-            controller: _cropController,
+          DropdownButtonFormField<String>(
+            value: commodities.contains(selectedCrop) ? selectedCrop : null,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.cropType + ' (e.g., Rice)',
+              labelText: AppLocalizations.of(context)!.cropType,
+              prefixIcon: const Icon(Icons.grass_rounded),
             ),
+            items: commodities
+                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .toList(),
+            onChanged: (v) => setState(() => selectedCrop = v!),
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
