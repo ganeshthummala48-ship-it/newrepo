@@ -501,7 +501,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
                             isWeed ? 'SPRAY HERE 🎯' : 'DO NOT SPRAY 🚫',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.black,
+                              fontWeight: FontWeight.w900,
                               color: themeColor,
                               letterSpacing: 0.5,
                             ),
