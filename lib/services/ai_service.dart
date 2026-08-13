@@ -19,7 +19,7 @@ class AIService {
 
     final headers = {
       "Content-Type": "application/json",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "application/json",
     };
     final body = jsonEncode({
       "question": message,
@@ -53,11 +53,10 @@ class AIService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data["answer"] ?? "No response from AI.";
-      } else {
-        throw Exception("Backend AI Error: ${response.statusCode}");
       }
+      return "Cloud AI server returned status ${response.statusCode}. Please try again.";
     } catch (e) {
-      throw Exception("Connection Error: $e");
+      return "Network error connecting to AI server. Please check your internet connection.";
     }
   }
 }

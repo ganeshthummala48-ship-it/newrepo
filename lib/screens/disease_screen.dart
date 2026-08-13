@@ -96,12 +96,18 @@ class _DiseaseScreenState extends State<DiseaseScreen>
       final errStr = e.toString().toLowerCase();
       if (e is SocketException || errStr.contains('socket')) {
         errorMessage = 'Network error: Could not reach AI server. Check your internet connection.';
+      } else if (errStr.contains('429') || errStr.contains('too many requests')) {
+        errorMessage = 'Server busy (Rate limited). Please wait 5 seconds and try again.';
       } else if (errStr.contains('timeout') || errStr.contains('timed out')) {
         errorMessage = 'Server is warming up (Render cold start). Please wait 30s and try again.';
       } else if (e is FormatException) {
         errorMessage = 'Invalid response from server. Please try again.';
       } else {
-        errorMessage = 'Error: ${e.toString().replaceFirst('Exception: ', '')}';
+        String msg = e.toString().replaceFirst('Exception: ', '');
+        if (msg.contains('<!DOCTYPE') || msg.contains('<html') || msg.contains('just a moment')) {
+          msg = 'Server rate-limited or updating. Please wait 5s and try again.';
+        }
+        errorMessage = msg.startsWith('Error') ? msg : 'Error: $msg';
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -115,35 +121,41 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     }
   }
 
-  // 🛡️ Network Helper with Automatic Failover
-  // NOTE: imagePath must be provided so the fallback can re-read the file fresh.
-  // MultipartFile streams are consumed after the first send() and cannot be reused.
+  // 🛡️ Network Helper with Automatic Retry for Rate Limits & Failover
   Future<http.StreamedResponse> _sendWithFallback(
     http.MultipartRequest request,
     String imagePath,
   ) async {
-    // Build a factory function to create fresh MultipartFile from disk each time
     Future<http.MultipartFile> freshFile() =>
         http.MultipartFile.fromPath('file', imagePath);
 
-    // Attempt 1: primary URL (local or release baseUrl)
+    // Set standard mobile client headers (avoid Cloudflare bot detection triggers)
+    request.headers['Accept'] = 'application/json';
+
+    // Attempt 1: primary request
     try {
-      return await request.send().timeout(const Duration(seconds: 20));
+      final res = await request.send().timeout(const Duration(seconds: 25));
+      if (res.statusCode != 429) {
+        return res;
+      }
+      debugPrint("Received HTTP 429 rate limit on attempt 1. Retrying with delay...");
     } catch (e) {
-      debugPrint("Primary connection failed ($e). Retrying with Render production backend...");
+      debugPrint("Primary connection attempt failed ($e). Retrying with Render production backend...");
     }
 
-    // Attempt 2: Render production fallback
+    // Wait 1.5 seconds to clear temporary rate limit window
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // Attempt 2: Fresh request retry
     final currentUrl = request.url.toString();
     final renderUrl = currentUrl.contains(AppConstants.renderUrl)
         ? currentUrl
         : currentUrl.replaceFirst(AppConstants.baseUrl, AppConstants.renderUrl);
     final fallbackRequest = http.MultipartRequest('POST', Uri.parse(renderUrl));
-    fallbackRequest.headers.addAll(request.headers);
+    fallbackRequest.headers['Accept'] = 'application/json';
     fallbackRequest.fields.addAll(request.fields);
-    // Re-read the image file fresh — streams from the first request are consumed
     fallbackRequest.files.add(await freshFile());
-    return await fallbackRequest.send().timeout(const Duration(seconds: 90));
+    return await fallbackRequest.send().timeout(const Duration(seconds: 60));
   }
 
   // 🍃 Mode 0: Disease Detection
@@ -151,8 +163,6 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     final imagePath = imageFile!.path;
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-disease');
     final request = http.MultipartRequest('POST', uri);
-    request.headers['User-Agent'] =
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
@@ -201,8 +211,6 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     final imagePath = imageFile!.path;
     final uri = Uri.parse('${AppConstants.baseUrl}/classify-fruit');
     final request = http.MultipartRequest('POST', uri);
-    request.headers['User-Agent'] =
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
@@ -239,8 +247,6 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     final imagePath = imageFile!.path;
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-weed');
     final request = http.MultipartRequest('POST', uri);
-    request.headers['User-Agent'] =
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
