@@ -418,7 +418,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.1),
+                    color: themeColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(themeIcon, color: themeColor, size: 32),
@@ -449,7 +449,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.15),
+                    color: themeColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -496,14 +496,14 @@ class _DiseaseScreenState extends State<DiseaseScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    themeColor.withOpacity(0.08),
-                    themeColor.withOpacity(0.03)
+                    themeColor.withValues(alpha: 0.08),
+                    themeColor.withValues(alpha: 0.03)
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: themeColor.withOpacity(0.25)),
+                border: Border.all(color: themeColor.withValues(alpha: 0.25)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -668,7 +668,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
                     boxShadow: (imageFile != null && !loading)
                         ? [
                             BoxShadow(
-                              color: Colors.green.withOpacity(0.3),
+                              color: Colors.green.withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             )
@@ -804,7 +804,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     )
@@ -855,7 +855,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
             ? Icons.bakery_dining_rounded
             : Icons.spa_rounded;
 
-    Color badgeColor = activeMode == 0
+    MaterialColor badgeColor = activeMode == 0
         ? Colors.green
         : activeMode == 1
             ? Colors.orange
@@ -868,19 +868,19 @@ class _DiseaseScreenState extends State<DiseaseScreen>
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [badgeColor.withOpacity(0.12), badgeColor.withOpacity(0.04)],
+            colors: [badgeColor.withValues(alpha: 0.12), badgeColor.withValues(alpha: 0.04)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: badgeColor.withOpacity(0.3)),
+          border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: badgeColor.withOpacity(0.18),
+                color: badgeColor.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: badgeColor, size: 24),
@@ -931,7 +931,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -977,7 +977,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
                   return Stack(
                     children: [
                       // Dark Overlay
-                      Container(color: Colors.black.withOpacity(0.35)),
+                      Container(color: Colors.black.withValues(alpha: 0.35)),
                       // Moving Laser Bar
                       Positioned(
                         top: _scanAnimation.value * 240,
@@ -996,7 +996,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.greenAccent.withOpacity(0.8),
+                                color: Colors.greenAccent.withValues(alpha: 0.8),
                                 blurRadius: 12,
                                 spreadRadius: 3,
                               )
@@ -1042,10 +1042,10 @@ class _DiseaseScreenState extends State<DiseaseScreen>
 
     return Card(
       elevation: 0,
-      color: badgeColor.withOpacity(0.07),
+      color: badgeColor.withValues(alpha: 0.07),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: badgeColor.withOpacity(0.25)),
+        side: BorderSide(color: badgeColor.withValues(alpha: 0.25)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
