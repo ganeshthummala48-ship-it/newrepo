@@ -13,5 +13,5 @@ demo = gr.Interface(
 # Mount FastAPI application onto Gradio
 app = gr.mount_gradio_app(fastapi_app, demo, path="/ui")
 
-# Launch Gradio server to keep the container running on Hugging Face Spaces
-demo.launch()
+# Launch Gradio server binding on 0.0.0.0:7860 for Hugging Face Container Proxy
+demo.launch(server_name="0.0.0.0", server_port=7860)
