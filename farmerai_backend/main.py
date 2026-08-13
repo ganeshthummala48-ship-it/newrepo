@@ -458,73 +458,42 @@ disease_model = None
 specialized_models = {}
 
 def get_disease_model():
-    """Returns the pre-loaded global disease model."""
+    """Returns or lazy-loads the global disease model."""
     global disease_model
-    return disease_model
-
-@app.on_event("startup")
-async def startup_event():
-    """Performs pre-loading and setup tasks on server start."""
-    global disease_model
-    import tensorflow as tf
-    import keras
-    print(f"🌅 Server starting: Pre-loading models... [TF={tf.__version__}, Keras={keras.__version__}]")
-    
-    # 1. Ensure disease model is present
-    try:
-        import download_model
-        download_model.download_model_if_missing()
-    except Exception as e:
-        print(f"⚠️ Warning: Model download check failed: {e}")
-
-    # 2. Pre-load the base disease detection model
-    if os.path.exists(MODEL_PATH):
-        import tensorflow as tf
-        import numpy as np
-        try:
-            # ── Compatibility shim ──────────────────────────────────────────
-            # The model was saved with a Keras version that stores
-            # `quantization_config` in the Dense layer config.  Older Keras
-            # builds don't recognise that key and raise an error.  We subclass
-            # Dense to silently absorb the unknown kwarg so loading succeeds
-            # regardless of the exact Keras minor version on the server.
+    if disease_model is None:
+        if os.path.exists(MODEL_PATH):
+            import keras
             from keras import layers as _keras_layers
 
             class _CompatDense(_keras_layers.Dense):
                 def __init__(self, *args, quantization_config=None, **kwargs):
                     super().__init__(*args, **kwargs)
 
-            with keras.utils.custom_object_scope({"Dense": _CompatDense}):
-                disease_model = keras.models.load_model(MODEL_PATH, compile=False)
+            try:
+                with keras.utils.custom_object_scope({"Dense": _CompatDense}):
+                    disease_model = keras.models.load_model(MODEL_PATH, compile=False)
+                print("✅ Base disease detection model loaded (lazy)")
+            except Exception as e:
+                print(f"⚠️ Warning: Model loading failed: {e}")
+                return None
+        else:
+            print(f"❌ Error: {MODEL_PATH} not found.")
+            return None
+    return disease_model
 
-            print("✅ Base disease detection model loaded")
-
-            # WARM-UP: Ensure first prediction is fast
-            dummy_input = np.zeros((1, 224, 224, 3))
-            predict_with_gpu(disease_model, dummy_input)
-            print("⚡ Disease model warmed up and ready")
-        except Exception as e:
-            print(f"⚠️ Warning: Model loading failed: {e}")
-
-    else:
-        print("❌ Error: plant_disease_model.h5 not found after download check.")
-
-    # 3. Pre-load crop recommendation models
-    print("🌾 Pre-loading crop recommendation models...")
-    get_crop_recommendation_models()
-
-    # 4. Pre-load Fruits-360 and DeepWeeds models (prevents OOM 503 on first request)
-    print("🍎 Pre-loading Fruits-360 model...")
+@app.on_event("startup")
+async def startup_event():
+    """Performs lightweight setup tasks on server start (models are lazy-loaded to prevent 512MB OOM)."""
+    import tensorflow as tf
+    import keras
+    print(f"🌅 Server starting: Lightweight mode [TF={tf.__version__}, Keras={keras.__version__}]")
+    
+    # Ensure disease model file is downloaded/present
     try:
-        _load_fruits_model()
+        import download_model
+        download_model.download_model_if_missing()
     except Exception as e:
-        print(f"⚠️ Fruits-360 model pre-load failed (will retry on first request): {e}")
-
-    print("🌿 Pre-loading DeepWeeds model...")
-    try:
-        _load_deepweeds_model()
-    except Exception as e:
-        print(f"⚠️ DeepWeeds model pre-load failed (will retry on first request): {e}")
+        print(f"⚠️ Warning: Model download check failed: {e}")
 
 
 def get_specialized_model(crop_name: str):
