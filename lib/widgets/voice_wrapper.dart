@@ -306,10 +306,10 @@ class _VoiceWrapperState extends State<VoiceWrapper>
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border.all(color: Colors.emerald.withOpacity(0.4), width: 1.5),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
@@ -335,10 +335,10 @@ class _VoiceWrapperState extends State<VoiceWrapper>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.emerald.withOpacity(0.2),
+                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.record_voice_over_rounded, color: Colors.emeraldAccent, size: 24),
+                        child: const Icon(Icons.record_voice_over_rounded, color: Color(0xFF34D399), size: 24),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -369,8 +369,8 @@ class _VoiceWrapperState extends State<VoiceWrapper>
                       children: [
                         Text(
                           answer,
-                          style: const TextStyle(
-                            color: Colors.white90,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 15,
                             height: 1.6,
                           ),
@@ -384,7 +384,7 @@ class _VoiceWrapperState extends State<VoiceWrapper>
                     children: [
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.emerald,
+                          backgroundColor: const Color(0xFF10B981),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () => VoiceService.speak(answer, langCode),
