@@ -110,6 +110,8 @@ class _DiseaseScreenState extends State<DiseaseScreen>
   Future<void> _analyzeDisease(String lang) async {
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-disease');
     final request = http.MultipartRequest('POST', uri);
+    request.headers['User-Agent'] =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
@@ -157,6 +159,8 @@ class _DiseaseScreenState extends State<DiseaseScreen>
   Future<void> _analyzeFruit(String lang) async {
     final uri = Uri.parse('${AppConstants.baseUrl}/classify-fruit');
     final request = http.MultipartRequest('POST', uri);
+    request.headers['User-Agent'] =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
@@ -192,6 +196,8 @@ class _DiseaseScreenState extends State<DiseaseScreen>
   Future<void> _analyzeWeed(String lang) async {
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-weed');
     final request = http.MultipartRequest('POST', uri);
+    request.headers['User-Agent'] =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
