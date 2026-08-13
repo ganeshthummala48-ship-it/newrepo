@@ -1,21 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
   // 🔗 API Base URLs
-  static const String _wifiIP = '172.20.10.3';
   static const String renderUrl = 'https://newrepo-bhe1.onrender.com';
 
-  static String get baseUrl {
-    if (kReleaseMode) {
-      return renderUrl;
-    }
-    // Debug mode: connect physical mobile or emulator to local Wi-Fi IP
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://$_wifiIP:8000';
-    }
-    return 'http://127.0.0.1:8000';
-  }
+  static String get baseUrl => renderUrl;
 
   // 🔑 API Keys
   static const String googleMapsApiKey = 'AIzaSyASnZckQ6FaWSl8L6HibN6J9EjfPq86QEM';
