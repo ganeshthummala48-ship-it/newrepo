@@ -1,3 +1,4 @@
+import os
 import gradio as gr
 from main import app as fastapi_app
 
@@ -14,4 +15,5 @@ demo = gr.Interface(
 app = gr.mount_gradio_app(fastapi_app, demo, path="/ui")
 
 if __name__ == "__main__":
-    demo.launch()
+    port = int(os.getenv("PORT", 7860))
+    demo.launch(server_name="0.0.0.0", server_port=port)
