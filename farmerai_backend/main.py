@@ -953,14 +953,47 @@ async def detect_weed(file: UploadFile = File(...), lang: str = Form("en")):
         raw_label = weed_labels.get(str(predicted_idx), str(predicted_idx))
         weed_name = WEED_SPECIES_MAP.get(raw_label, f"Weed Species {raw_label}")
 
+        # Weed vs Crop Classification & Robotic Sprayer Decision
+        is_weed = not ("Negative" in weed_name or "No Weed" in weed_name or raw_label == "8" or predicted_idx == 8)
+        spray_action = "SPRAY" if is_weed else "DONT_SPRAY"
+        spray_decision = "SPRAY HERE 🎯 (Target Weed Identified)" if is_weed else "DO NOT SPRAY 🚫 (Crop Protected Zone)"
+        spray_color = "#FF3333" if is_weed else "#33CC33"
+        robotic_command = "ACTUATE_NOZZLE_ON" if is_weed else "NOZZLE_SHUT_OFF"
+
+        spray_map = {
+            "decision": spray_decision,
+            "action": spray_action,
+            "target_label": weed_name,
+            "confidence": round(confidence, 2),
+            "robotic_command": robotic_command,
+            "nozzle_status": "ACTIVE SPRAY" if is_weed else "OFF / CROP SAFE",
+            "spray_zone": "Target Center Grid (50%, 50%)" if is_weed else "Crop Shield Zone",
+            "grid_map": [
+                ["SAFE", "SAFE", "SAFE"],
+                ["SAFE", "SPRAY" if is_weed else "SAFE", "SAFE"],
+                ["SAFE", "SAFE", "SAFE"]
+            ]
+        }
+
         # Use real Cohere API key (COHERE_SPECIALIZED_API_KEY resolves to .env key)
-        prompt = f"Provide 2-sentence control advice for {weed_name} weed in farmland. Respond strictly in {LANG_NAMES.get(lang, 'English')}."
+        prompt = f"""You are an AI robotic sprayer & agricultural drone guidance system.
+Detected target: {weed_name}
+Classifier result: {'Weed detected - SPRAY HERE' if is_weed else 'Crop / No weed - DO NOT SPRAY'}
+
+Provide 2-sentence precision spraying guidance for a robotic sprayer or drone (chemical dosage, nozzle flow, and crop safety). Respond strictly in {LANG_NAMES.get(lang, 'English')}."""
+
         control_advice = await call_cohere(prompt, lang=lang, api_key=COHERE_SPECIALIZED_API_KEY)
 
         return {
             "weed": weed_name,
             "confidence": round(confidence, 2),
-            "control_advice": control_advice if control_advice else f"Recommended weeding control for {weed_name}."
+            "is_weed": is_weed,
+            "spray_action": spray_action,
+            "spray_decision": spray_decision,
+            "spray_color": spray_color,
+            "robotic_command": robotic_command,
+            "spray_map": spray_map,
+            "control_advice": control_advice if control_advice else f"Recommended guidance for {weed_name}."
         }
     except Exception as e:
         return {"error": f"Weed detection failed: {str(e)}"}

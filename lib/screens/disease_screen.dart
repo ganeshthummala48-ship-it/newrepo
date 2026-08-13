@@ -255,6 +255,9 @@ class _DiseaseScreenState extends State<DiseaseScreen>
       final weedName = data['weed'] ?? 'Unknown Weed Species';
       final confidence = (data['confidence'] as num?)?.toDouble() ?? 0.0;
       final controlAdvice = data['control_advice'] ?? 'No advice available.';
+      final isWeed = data['is_weed'] ?? (!weedName.contains("Negative") && !weedName.contains("No Weed"));
+      final sprayDecision = data['spray_decision'] ?? (isWeed ? "SPRAY HERE 🎯 (Target Weed Identified)" : "DO NOT SPRAY 🚫 (Crop Protected Zone)");
+      final roboticCommand = data['robotic_command'] ?? (isWeed ? "ACTUATE_NOZZLE_ON" : "NOZZLE_SHUT_OFF");
 
       final box = Hive.box('historyBox');
       box.add({
@@ -263,10 +266,18 @@ class _DiseaseScreenState extends State<DiseaseScreen>
         'confidence': confidence,
         'date': DateTime.now().toString(),
         'mode': 'Weed Detection',
+        'spray_decision': sprayDecision,
       });
 
       if (!mounted) return;
-      _showWeedResultSheet(weedName, confidence, controlAdvice);
+      _showWeedResultSheet(
+        weedName: weedName,
+        confidence: confidence,
+        controlAdvice: controlAdvice,
+        isWeed: isWeed,
+        sprayDecision: sprayDecision,
+        roboticCommand: roboticCommand,
+      );
     } else {
       throw Exception("Server error ${streamedResponse.statusCode}: ${body.length > 200 ? body.substring(0, 200) : body}");
     }
@@ -431,11 +442,16 @@ class _DiseaseScreenState extends State<DiseaseScreen>
   }
 
   // 🌿 Bottom Sheet for Deep Weed Detection
-  void _showWeedResultSheet(
-      String weedName, double confidence, String controlAdvice) {
-    bool isNegative = weedName.contains("Negative") || weedName.contains("No Weed");
-    Color themeColor = isNegative ? Colors.green : Colors.red;
-    IconData themeIcon = isNegative ? Icons.check_circle_rounded : Icons.warning_amber_rounded;
+  void _showWeedResultSheet({
+    required String weedName,
+    required double confidence,
+    required String controlAdvice,
+    required bool isWeed,
+    required String sprayDecision,
+    required String roboticCommand,
+  }) {
+    Color themeColor = isWeed ? Colors.red : Colors.green;
+    IconData themeIcon = isWeed ? Icons.my_location_rounded : Icons.shield_rounded;
 
     showModalBottomSheet(
       context: context,
@@ -447,161 +463,292 @@ class _DiseaseScreenState extends State<DiseaseScreen>
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: themeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(themeIcon, color: themeColor, size: 32),
+              const SizedBox(height: 16),
+
+              // 🎯 ROBOTIC SPRAYER DECISION BANNER
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: themeColor.withValues(alpha: 0.4), width: 1.5),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        weedName,
+                child: Row(
+                  children: [
+                    Icon(themeIcon, color: themeColor, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isWeed ? 'SPRAY HERE 🎯' : 'DO NOT SPRAY 🚫',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.black,
+                              color: themeColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isWeed ? 'Target Weed Identified for Sprayer' : 'Protected Crop / Safe Area',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: themeColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        isWeed ? 'SPRAY' : 'SHUT OFF',
                         style: const TextStyle(
-                          fontSize: 20,
+                          color: Colors.white,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'DeepWeeds AI Species Model',
-                        style: TextStyle(
-                            fontSize: 13, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: themeColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
+              ),
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(Icons.grass_rounded, color: Colors.green.shade800, size: 28),
                   ),
-                  child: Text(
-                    isNegative ? 'Low Risk' : 'Invasive Species',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: themeColor,
-                      fontSize: 12,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          weedName,
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'DeepWeeds AI Drone Classifier',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            // Progress Bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Confidence Match',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                ),
-                Text(
-                  '${confidence.toStringAsFixed(1)}%',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: themeColor),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: (confidence / 100).clamp(0.0, 1.0),
-                minHeight: 8,
-                backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation<Color>(themeColor),
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Control Advice Card (Cohere Specialized Key)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    themeColor.withValues(alpha: 0.08),
-                    themeColor.withValues(alpha: 0.03)
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: themeColor.withValues(alpha: 0.25)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.shield_outlined, color: themeColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Farmland Control & Management',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: themeColor,
-                          fontSize: 15,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: themeColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isWeed ? 'Weed Target' : 'Crop Safe',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: themeColor,
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    controlAdvice,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade900,
-                      height: 1.4,
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+              const SizedBox(height: 16),
+
+              // 🗺️ SPRAYER / DRONE GRID MAP
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Done',
-                  style: TextStyle(fontSize: 16, color: Colors.white),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.grid_4x4_rounded, size: 18, color: Colors.black87),
+                            SizedBox(width: 6),
+                            Text(
+                              'Target Spray Grid Map (3x3)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Cmd: $roboticCommand',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: themeColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(3, (col) {
+                        return Column(
+                          children: List.generate(3, (row) {
+                            bool isCenter = (row == 1 && col == 1);
+                            bool activeSpray = isCenter && isWeed;
+                            Color cellColor = activeSpray
+                                ? Colors.red.shade600
+                                : (isCenter && !isWeed ? Colors.green.shade600 : Colors.green.shade100);
+                            return Container(
+                              margin: const EdgeInsets.all(3),
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: cellColor,
+                                borderRadius: BorderRadius.circular(8),
+                                border: activeSpray
+                                    ? Border.all(color: Colors.red.shade900, width: 2)
+                                    : null,
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  activeSpray
+                                      ? Icons.local_see_rounded
+                                      : Icons.shield_outlined,
+                                  color: activeSpray ? Colors.white : Colors.green.shade800,
+                                  size: 16,
+                                ),
+                              ),
+                            );
+                          }),
+                        );
+                      }),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+
+              // Progress Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Detection Confidence',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  ),
+                  Text(
+                    '${confidence.toStringAsFixed(1)}%',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: themeColor),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: (confidence / 100).clamp(0.0, 1.0),
+                  minHeight: 8,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Robotic Sprayer & Drone Guidance Card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      themeColor.withValues(alpha: 0.08),
+                      themeColor.withValues(alpha: 0.03)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: themeColor.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.precision_manufacturing_rounded, color: themeColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Robotic Sprayer & Drone Guidance',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: themeColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      controlAdvice,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: Colors.grey.shade900,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConstants.primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
