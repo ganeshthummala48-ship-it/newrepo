@@ -10,8 +10,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy all application code and model files
 COPY . /code
 
-# Expose port 7860 for Hugging Face Spaces
-EXPOSE 7860
+# Render uses a dynamic $PORT; fallback to 10000 for local runs
+EXPOSE 10000
 
-# Start FastAPI application with uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Start FastAPI — PORT is injected by Render at runtime
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}

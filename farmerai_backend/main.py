@@ -212,7 +212,14 @@ def _migrate_db():
 _migrate_db()
 
 # ── Seed DB with initial contractor data if empty ──
+# Guard: only seed once per process, even if this module is imported twice
+_SEEDED = False
+
 def _seed_db():
+    global _SEEDED
+    if _SEEDED:
+        return
+    _SEEDED = True
     db = SessionLocal()
     try:
         if db.query(User).filter(User.role == "contractor").count() == 0:
@@ -561,6 +568,12 @@ def get_crop_recommendation_models():
 # ======================================================
 # 🔧 UTILITY FUNCTIONS
 # ======================================================
+
+@app.get("/health")
+async def health_check():
+    """Simple health-check endpoint used by HF and monitoring tools."""
+    return {"status": "ok"}
+
 
 @app.get("/diag")
 async def diagnostic():
