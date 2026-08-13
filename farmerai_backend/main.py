@@ -25,6 +25,23 @@ from datetime import datetime
 load_dotenv()
 
 # ======================================================
+# 🔹 HUGGING FACE ZEROGPU SUPPORT
+# ======================================================
+
+try:
+    import spaces
+    print("⚡ HuggingFace spaces module detected. GPU support enabled.")
+    
+    @spaces.GPU
+    def predict_with_gpu(model, batch):
+        return model.predict(batch)
+except Exception:
+    print("ℹ️ Standard CPU mode (spaces module not present).")
+    def predict_with_gpu(model, batch):
+        return model.predict(batch)
+
+
+# ======================================================
 # 🔹 COHERE HELPER
 # ======================================================
 
@@ -475,7 +492,7 @@ async def startup_event():
 
             # WARM-UP: Ensure first prediction is fast
             dummy_input = np.zeros((1, 224, 224, 3))
-            disease_model.predict(dummy_input, verbose=0)
+            predict_with_gpu(disease_model, dummy_input)
             print("⚡ Disease model warmed up and ready")
         except Exception as e:
             print(f"⚠️ Warning: Model loading failed: {e}")
@@ -669,7 +686,7 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
     # ──────────────────────────────────────────────────────────────────
     # 🎯 STAGE 1: CROP IDENTIFICATION (Hierarchical Step)
     # ──────────────────────────────────────────────────────────────────
-    predictions = base_model.predict(image_array_batch)
+    predictions = predict_with_gpu(base_model, image_array_batch)
     predicted_index = int(np.argmax(predictions))
     confidence = float(np.max(predictions)) * 100
     import random as _rnd
@@ -803,6 +820,128 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
         "ai_explanation": ai_explanation,
         "rejection_reason": rejection_reason if is_unknown else None
     }
+
+
+# ======================================================
+# 🍎 FRUIT CLASSIFICATION & 🌿 WEED DETECTION (LAZY + OOM SAFE)
+# ======================================================
+
+FRUITS_MODEL_PATH = os.path.join(BASE_DIR, "model", "fruits360_model.h5")
+FRUITS_LABELS_PATH = os.path.join(BASE_DIR, "model", "fruits360_labels.json")
+
+DEEPWEEDS_MODEL_PATH = os.path.join(BASE_DIR, "model", "deepweeds_model.h5")
+DEEPWEEDS_LABELS_PATH = os.path.join(BASE_DIR, "model", "deepweeds_labels.json")
+
+@app.post("/classify-fruit")
+async def classify_fruit(file: UploadFile = File(...), lang: str = Form("en")):
+    """
+    Classifies fruits & vegetables using the Fruits-360 ResNet50 model.
+    OOM-Safe: Uses lazy loading and immediate garbage collection.
+    """
+    import numpy as np
+    import gc
+    
+    if not os.path.exists(FRUITS_MODEL_PATH):
+        return {"error": "Fruits classification model file not found on server."}
+
+    image_bytes = await file.read()
+    try:
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except Exception:
+        return {"error": "Invalid image format."}
+
+    resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
+    image = image.resize((100, 100), resample_filter)
+    image_array = np.array(image) / 255.0
+    image_batch = np.expand_dims(image_array, axis=0)
+
+    try:
+        fruit_model = keras.models.load_model(FRUITS_MODEL_PATH, compile=False)
+        predictions = fruit_model.predict(image_batch, verbose=0)
+        predicted_idx = int(np.argmax(predictions))
+        confidence = float(np.max(predictions)) * 100
+
+        fruits_labels = {}
+        if os.path.exists(FRUITS_LABELS_PATH):
+            with open(FRUITS_LABELS_PATH, "r") as f:
+                fruits_labels = json.load(f)
+
+        fruit_name = fruits_labels.get(str(predicted_idx), f"Fruit Class {predicted_idx}")
+
+        del fruit_model
+        gc.collect()
+        keras.backend.clear_session()
+
+        prompt = f"Provide a short 2-sentence nutritional overview of {fruit_name}. Respond strictly in {LANG_NAMES.get(lang, 'English')}."
+        ai_info = await call_cohere(prompt, lang=lang)
+
+        return {
+            "fruit": fruit_name,
+            "confidence": round(confidence, 2),
+            "ai_info": ai_info if ai_info else f"Identified as {fruit_name}."
+        }
+    except Exception as e:
+        gc.collect()
+        return {"error": f"Fruit classification failed: {str(e)}"}
+
+
+@app.post("/detect-weed")
+async def detect_weed(file: UploadFile = File(...), lang: str = Form("en")):
+    """
+    Detects weed species using the DeepWeeds MobileNetV2 model.
+    OOM-Safe: Uses lazy loading and immediate memory release.
+    """
+    import numpy as np
+    import gc
+
+    if not os.path.exists(DEEPWEEDS_MODEL_PATH):
+        return {"error": "DeepWeeds model file not found on server."}
+
+    image_bytes = await file.read()
+    try:
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except Exception:
+        return {"error": "Invalid image format."}
+
+    resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
+    image = image.resize((224, 224), resample_filter)
+    image_array = np.array(image) / 255.0
+    image_batch = np.expand_dims(image_array, axis=0)
+
+    try:
+        weed_model = keras.models.load_model(DEEPWEEDS_MODEL_PATH, compile=False)
+        predictions = weed_model.predict(image_batch, verbose=0)
+        predicted_idx = int(np.argmax(predictions))
+        confidence = float(np.max(predictions)) * 100
+
+        weed_labels = {}
+        if os.path.exists(DEEPWEEDS_LABELS_PATH):
+            with open(DEEPWEEDS_LABELS_PATH, "r") as f:
+                weed_labels = json.load(f)
+
+        weed_species_map = {
+            "0": "Chinee Apple", "1": "Lantana", "2": "Parkinsonia",
+            "3": "Parthenium", "4": "Prickly Acacia", "5": "Rubber Vine",
+            "6": "Siam Weed", "7": "Snake Weed", "8": "Negative / No Weed"
+        }
+        raw_label = weed_labels.get(str(predicted_idx), str(predicted_idx))
+        weed_name = weed_species_map.get(raw_label, f"Weed Species {raw_label}")
+
+        del weed_model
+        gc.collect()
+        keras.backend.clear_session()
+
+        prompt = f"Provide 2-sentence control advice for {weed_name} weed in farmland. Respond strictly in {LANG_NAMES.get(lang, 'English')}."
+        control_advice = await call_cohere(prompt, lang=lang)
+
+        return {
+            "weed": weed_name,
+            "confidence": round(confidence, 2),
+            "control_advice": control_advice if control_advice else f"Recommended weeding control for {weed_name}."
+        }
+    except Exception as e:
+        gc.collect()
+        return {"error": f"Weed detection failed: {str(e)}"}
 
 
 # ======================================================
