@@ -1,21 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
   // 🔗 API Base URLs
-  // Use http://10.0.2.2:8000 for Android Emulator connecting to localhost
-  // Use http://127.0.0.1:8000 for iOS Simulator
-  // Use actual IP for Physical Devices
-  static const String _localIP = '10.86.142.73'; // Your machine IP
   static const String _renderUrl = 'https://newrepo-bhe1.onrender.com';
 
   static String get baseUrl {
-    if (kReleaseMode) {
-      return _renderUrl;
-    }
-    // In debug mode, we prefer local IP but allow for emulator fallback if needed
-    // Note: If you are on an Android Emulator, 10.0.2.2 is usually better than the machine IP
-    return 'http://$_localIP:8000'; 
+    // Connect directly to live production backend on Render
+    return _renderUrl;
   }
 
   // 🔑 API Keys

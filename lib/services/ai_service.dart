@@ -29,7 +29,7 @@ class AIService {
           "question": message,
           "lang": langCode,
         }),
-      );
+      ).timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

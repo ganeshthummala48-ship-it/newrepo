@@ -113,7 +113,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
@@ -160,7 +160,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
@@ -195,7 +195,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
