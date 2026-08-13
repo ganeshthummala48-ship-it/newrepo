@@ -44,6 +44,7 @@ void main() async {
   await Hive.openBox('historyBox');
   await Hive.openBox('profileBox');
   await Hive.openBox('cacheBox');
+  await Hive.openBox('userBox');
 
   // 🔔 Initialize local notifications & FCM
   await NotificationService.init();

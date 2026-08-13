@@ -21,8 +21,18 @@ class CommunityProvider with ChangeNotifier {
   }
 
   void _initWebSocket() {
-    final box = Hive.box('userBox');
-    final userId = box.get('phone', defaultValue: 'guest_${DateTime.now().millisecondsSinceEpoch}');
+    String userId = 'guest_${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      if (Hive.isBoxOpen('userBox')) {
+        final uBox = Hive.box('userBox');
+        userId = uBox.get('phone') ?? uBox.get('name') ?? userId;
+      } else if (Hive.isBoxOpen('profileBox')) {
+        final pBox = Hive.box('profileBox');
+        userId = pBox.get('phone') ?? pBox.get('name') ?? userId;
+      }
+    } catch (e) {
+      debugPrint('Hive box access error: $e');
+    }
     final wsUrl = '${AppConstants.baseUrl.replaceFirst('http', 'ws')}/ws/community/$userId';
     
     try {

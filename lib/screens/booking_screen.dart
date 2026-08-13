@@ -115,8 +115,12 @@ class _BookingScreenState extends State<BookingScreen> with SingleTickerProvider
   Future<void> _fetchMyBookings() async {
     setState(() => _isLoadingBookings = true);
     try {
-      final box = Hive.box('userBox');
-      final mobile = box.get('phone', defaultValue: '');
+      String mobile = '';
+      if (Hive.isBoxOpen('userBox')) {
+        mobile = Hive.box('userBox').get('phone', defaultValue: '');
+      } else if (Hive.isBoxOpen('profileBox')) {
+        mobile = Hive.box('profileBox').get('phone', defaultValue: '');
+      }
       
       final url = mobile.isNotEmpty 
           ? '${AppConstants.baseUrl}/fertilizer/bookings?mobile=$mobile'
