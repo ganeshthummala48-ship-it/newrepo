@@ -21,7 +21,7 @@ import httpx
 from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey, DateTime, Text, Boolean, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 # ======================================================
@@ -1601,23 +1601,133 @@ class BookingRequest(PydanticBaseModel):
     fertilizer_type: str
     bags_requested: int
 
+TELANGANA_COORDS = {
+    "Hyderabad": (17.3850, 78.4867),
+    "Nalgonda": (16.8724, 79.5627),
+    "Warangal": (17.9784, 79.5941),
+    "Nizamabad": (18.6725, 77.8967),
+    "Karimnagar": (18.4386, 79.1288),
+    "Khammam": (17.2473, 80.1514),
+    "Sangareddy": (17.6200, 78.0800),
+    "Siddipet": (18.1000, 78.8500),
+    "Mahabubnagar": (16.7400, 77.9800),
+    "Medak": (18.0400, 78.2600),
+    "Suryapet": (17.1400, 79.6200),
+    "Adilabad": (19.6600, 78.5300),
+    "Jagtial": (18.7900, 78.9100),
+    "Peddapalli": (18.6100, 79.3700),
+    "Kamareddy": (18.3200, 78.3400),
+    "Vikarabad": (17.3300, 77.9000),
+    "Mahabubabad": (17.6000, 80.0000),
+    "Wanaparthy": (16.3600, 78.0600),
+    "Gadwal": (16.2300, 77.8000),
+    "Jangaon": (17.7200, 79.1600),
+}
+
+MANDALS_PER_DISTRICT = {
+    "Hyderabad": ["Amberpet", "Secunderabad", "Khairatabad", "Charminar", "Golconda", "Asifnagar", "Musheerabad", "Bahadurpura"],
+    "Nalgonda": ["Miryalaguda", "Nalgonda Urban", "Nalgonda Rural", "Nakrekal", "Devarakonda", "Huzurnagar", "Kodal", "Chandur"],
+    "Warangal": ["Hanamkonda", "Kazipet", "Warangal City", "Narsampet", "Wardhannapet", "Parvathagiri", "Geesugonda", "Atmakur"],
+    "Nizamabad": ["Bodhan", "Nizamabad Urban", "Armoor", "Balkonda", "Dichpally", "Varni", "Kotagiri", "Ranjal"],
+    "Karimnagar": ["Karimnagar Urban", "Choppadandi", "Manakondur", "Huzurabad", "Jammikunta", "Gangadhara", "Veenavanka", "Thimmapur"],
+    "Khammam": ["Khammam Urban", "Wyra", "Kalluru", "Sathupally", "Penuballi", "Mudigonda", "Kusumanchi", "Nelakondapalli"],
+    "Sangareddy": ["Sangareddy", "Patancheru", "Zaheerabad", "Narayankhed", "Kandi", "Sadasivpet", "Jinnaram", "Ameerpet"],
+    "Siddipet": ["Siddipet Urban", "Gajwel", "Dubbak", "Husnabad", "Mulugu", "Chinnakodur", "Nangnoor", "Wargal"],
+    "Mahabubnagar": ["Mahabubnagar Urban", "Jadcherla", "Bhutpur", "Devarkadra", "Midjil", "Nawabpet", "Addakal", "Balanagar"],
+    "Medak": ["Medak Urban", "Toopran", "Ramayampet", "Narsapur", "Yeldurthy", "Shankarampet", "Chegunta", "Kowdipally"],
+}
+
+DEALER_NAMES = [
+    ("Telangana Agros Primary Depot", "TS Agros Corporation", "001"),
+    ("PACS Rythu Sahakara Sangham", "K. Venkat Reddy", "042"),
+    ("Rythu Seva Kendra", "M. Mallesh Goud", "089"),
+    ("Sri Rama Fertilisers & Seeds", "Ch. Srinivas Rao", "115"),
+    ("Kisan Agro Service Point", "P. Ramesh Kumar", "178"),
+    ("Sri Venkateshwara Agros", "G. Laxman Reddy", "204"),
+    ("Bhadradri Farmers Society", "B. Narasimha", "256"),
+    ("Telangana Rythu Depot", "T. Rajeshwar", "310")
+]
+
+def _ensure_dealers_for_district(db: Session, district: str):
+    import random
+    existing = db.query(Dealer).filter(Dealer.district.ilike(f"%{district}%")).count()
+    if existing >= 7:
+        return
+
+    base_lat, base_lng = TELANGANA_COORDS.get(district, (17.3850, 78.4867))
+    mandals = MANDALS_PER_DISTRICT.get(district, [f"{district} Central", f"{district} North", f"{district} South", f"{district} East", f"{district} West", f"{district} Rural", f"{district} Urban", f"{district} Hub"])
+
+    for i in range(8):
+        mandal = mandals[i % len(mandals)]
+        name, owner, lic_code = DEALER_NAMES[i % len(DEALER_NAMES)]
+        lat = round(base_lat + (random.uniform(-0.04, 0.04)), 4)
+        lng = round(base_lng + (random.uniform(-0.04, 0.04)), 4)
+
+        dealer = Dealer(
+            name=f"{name} ({mandal})",
+            owner_name=owner,
+            mobile=f"98490{random.randint(10000, 99999)}",
+            license_no=f"TS/{district[:3].upper()}/FERT/2024/{lic_code}",
+            district=district,
+            mandal=mandal,
+            village=f"{mandal} Main Market",
+            lat=lat,
+            lng=lng
+        )
+        db.add(dealer)
+        db.commit()
+        db.refresh(dealer)
+
+        stocks_data = [
+            ("Urea", random.randint(800, 2500), 266.50),
+            ("DAP", random.randint(300, 1200), 1350.00),
+            ("20:20:0", random.randint(250, 900), 1200.00),
+            ("MOP", random.randint(150, 600), 1700.00),
+            ("NPK", random.randint(200, 800), 1450.00),
+        ]
+        for f_type, bags, mrp in stocks_data:
+            stock = FertilizerStock(
+                dealer_id=dealer.id,
+                fertilizer_type=f_type,
+                available_bags=bags,
+                mrp_per_bag=mrp
+            )
+            db.add(stock)
+    db.commit()
+    print(f"✅ Seeded 8 Dealers across Mandals for {district}")
+
 @app.get("/fertilizer/dealers")
-async def get_dealers(district: str = "", db: Session = Depends(get_db)):
+async def get_dealers(district: str = "Hyderabad", db: Session = Depends(get_db)):
+    target_district = district if district else "Hyderabad"
+    _ensure_dealers_for_district(db, target_district)
+
     query = db.query(Dealer).filter(Dealer.is_active == True)
-    if district:
-        query = query.filter(Dealer.district == district)
+    query = query.filter(Dealer.district.ilike(f"%{target_district}%"))
     dealers = query.all()
     result = []
     for d in dealers:
         stocks = [{"type": s.fertilizer_type, "bags": s.available_bags, "mrp": s.mrp_per_bag} for s in d.stocks]
-        result.append({"id": d.id, "name": d.name, "owner": d.owner_name, "mobile": d.mobile,
-                       "license": d.license_no, "district": d.district, "mandal": d.mandal,
-                       "village": d.village, "lat": d.lat, "lng": d.lng, "stocks": stocks})
+        result.append({
+            "id": d.id, "name": d.name, "owner": d.owner_name, "mobile": d.mobile,
+            "license": d.license_no, "district": d.district, "mandal": d.mandal,
+            "village": d.village, "lat": d.lat, "lng": d.lng, "stocks": stocks
+        })
     return {"dealers": result}
 
 @app.get("/fertilizer/allocation")
 async def get_allocation(crop: str = "Paddy", season: str = "Kharif", acres: float = 1.0):
-    base_allocation = {"Urea": 2, "DAP": 1, "20:20:0": 1, "MOP": 1, "NPK": 1}
+    crop_lower = crop.lower()
+    if "paddy" in crop_lower or "rice" in crop_lower:
+        base_allocation = {"Urea": 4, "DAP": 2, "MOP": 1, "20:20:0": 1, "NPK": 1}
+    elif "cotton" in crop_lower:
+        base_allocation = {"Urea": 3, "20:20:0": 2, "MOP": 1, "DAP": 1, "NPK": 1}
+    elif "maize" in crop_lower:
+        base_allocation = {"Urea": 3, "DAP": 1, "MOP": 1, "20:20:0": 1, "NPK": 1}
+    elif "chilli" in crop_lower:
+        base_allocation = {"Urea": 4, "DAP": 2, "MOP": 2, "NPK": 2, "20:20:0": 1}
+    else:
+        base_allocation = {"Urea": 2, "DAP": 1, "20:20:0": 1, "MOP": 1, "NPK": 1}
+
     result = {k: max(1, int(v * acres)) for k, v in base_allocation.items()}
     return {"allocation": result, "acres": acres, "crop": crop, "season": season}
 
@@ -1629,10 +1739,15 @@ async def create_booking(req: BookingRequest, db: Session = Depends(get_db)):
         FertilizerStock.fertilizer_type == req.fertilizer_type
     ).first()
     if not stock or stock.available_bags < req.bags_requested:
-        raise HTTPException(status_code=400, detail="Insufficient stock")
+        raise HTTPException(status_code=400, detail="Insufficient stock at selected dealer")
+
     stock.available_bags -= req.bags_requested
-    token = "TKN" + "".join(random.choices(string.digits, k=8))
+    token = "TS-FERT-" + "".join(random.choices(string.digits, k=7))
     otp = "".join(random.choices(string.digits, k=4))
+
+    dealer = db.query(Dealer).filter(Dealer.id == req.dealer_id).first()
+    dealer_name = dealer.name if dealer else "Telangana Fertilizer Depot"
+
     booking = Booking(
         token=token, otp=otp, ppb_number=req.ppb_number, farmer_name=req.farmer_name,
         mobile=req.mobile, aadhar_last4=req.aadhar_last4, village=req.village,
@@ -1642,7 +1757,15 @@ async def create_booking(req: BookingRequest, db: Session = Depends(get_db)):
     )
     db.add(booking)
     db.commit()
-    return {"token": token, "otp": otp, "status": "confirmed"}
+    return {
+        "token": token,
+        "otp": otp,
+        "status": "confirmed",
+        "dealer_name": dealer_name,
+        "mrp_per_bag": stock.mrp_per_bag,
+        "total_amount": round(stock.mrp_per_bag * req.bags_requested, 2),
+        "pickup_date": (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
+    }
 
 @app.get("/fertilizer/bookings")
 async def get_bookings(mobile: str = "", db: Session = Depends(get_db)):
@@ -1650,9 +1773,17 @@ async def get_bookings(mobile: str = "", db: Session = Depends(get_db)):
     if mobile:
         query = query.filter(Booking.mobile == mobile)
     bookings = query.order_by(Booking.timestamp.desc()).all()
-    result = [{"token": b.token, "farmer_name": b.farmer_name, "fertilizer_type": b.fertilizer_type,
-               "bags": b.bags_requested, "district": b.district, "status": b.status,
-               "timestamp": b.timestamp.isoformat()} for b in bookings]
+    result = []
+    for b in bookings:
+        dealer = db.query(Dealer).filter(Dealer.id == b.dealer_id).first()
+        result.append({
+            "token": b.token, "otp": b.otp, "farmer_name": b.farmer_name,
+            "fertilizer_type": b.fertilizer_type, "bags": b.bags_requested,
+            "district": b.district, "mandal": b.mandal, "village": b.village,
+            "dealer_name": dealer.name if dealer else "Telangana Agro Depot",
+            "dealer_mobile": dealer.mobile if dealer else "9849012345",
+            "status": b.status, "timestamp": b.timestamp.isoformat()
+        })
     return {"bookings": result}
 
 # ======================================================

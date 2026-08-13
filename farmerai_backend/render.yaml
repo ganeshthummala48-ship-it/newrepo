@@ -5,7 +5,9 @@ services:
     dockerfilePath: ./Dockerfile
     plan: free                  # free tier (512 MB RAM, spins down after 15 min)
     region: singapore           # closest to India
-    healthCheckPath: /health
+    healthCheckPath: /listings
     envVars:
+      - key: GROQ_API_KEY
+        sync: false             # paste in Render dashboard
       - key: COHERE_API_KEY
-        sync: false             # you will paste this in Render dashboard
+        sync: false             # paste in Render dashboard
