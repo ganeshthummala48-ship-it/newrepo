@@ -51,4 +51,5 @@ app.*.map.json
 *.json
 *.db
 scratch/
+hf_space/
 
