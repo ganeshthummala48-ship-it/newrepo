@@ -53,14 +53,16 @@ LANG_NAMES = {
 }
 
 
-async def call_cohere(prompt: str, model: str = "command-a-03-2025", lang: str = "en"):
-    cohere_api_key = os.getenv("COHERE_API_KEY")
-    if not cohere_api_key:
-        print("❌ Error: COHERE_API_KEY environment variable is not set!")
+COHERE_SPECIALIZED_API_KEY = os.getenv("COHERE_SPECIALIZED_API_KEY", "cohere_99HIkhvkxtypfasVfHfTmHyA3us3fl8pNF64vIdJ2LbsU3")
+
+async def call_cohere(prompt: str, model: str = "command-a-03-2025", lang: str = "en", api_key: str = None):
+    target_key = api_key or os.getenv("COHERE_API_KEY")
+    if not target_key:
+        print("❌ Error: Cohere API key is not set!")
         return None
     url = "https://api.cohere.ai/v1/chat"
     headers = {
-        "Authorization": f"Bearer {cohere_api_key}",
+        "Authorization": f"Bearer {target_key}",
         "Content-Type": "application/json"
     }
     
@@ -873,7 +875,7 @@ async def classify_fruit(file: UploadFile = File(...), lang: str = Form("en")):
         keras.backend.clear_session()
 
         prompt = f"Provide a short 2-sentence nutritional overview of {fruit_name}. Respond strictly in {LANG_NAMES.get(lang, 'English')}."
-        ai_info = await call_cohere(prompt, lang=lang)
+        ai_info = await call_cohere(prompt, lang=lang, api_key=COHERE_SPECIALIZED_API_KEY)
 
         return {
             "fruit": fruit_name,
@@ -932,7 +934,7 @@ async def detect_weed(file: UploadFile = File(...), lang: str = Form("en")):
         keras.backend.clear_session()
 
         prompt = f"Provide 2-sentence control advice for {weed_name} weed in farmland. Respond strictly in {LANG_NAMES.get(lang, 'English')}."
-        control_advice = await call_cohere(prompt, lang=lang)
+        control_advice = await call_cohere(prompt, lang=lang, api_key=COHERE_SPECIALIZED_API_KEY)
 
         return {
             "weed": weed_name,
