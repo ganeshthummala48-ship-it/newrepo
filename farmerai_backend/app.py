@@ -1,7 +1,7 @@
 import gradio as gr
 from main import app as fastapi_app
 
-# Create a clean Gradio interface for the Hugging Face Space landing page
+# Create a Gradio landing page interface
 demo = gr.Interface(
     fn=lambda: "🌾 FarmerAI Backend Server is live and operational!",
     inputs=[],
@@ -12,3 +12,6 @@ demo = gr.Interface(
 
 # Mount FastAPI application onto Gradio
 app = gr.mount_gradio_app(fastapi_app, demo, path="/ui")
+
+# Launch Gradio server to keep the container running on Hugging Face Spaces
+demo.launch()
