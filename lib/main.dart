@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/registration_screen.dart';
 import 'screens/contractor_dashboard.dart';
 import 'screens/contracts_screen.dart';
 import 'screens/machinery_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/splash_screen.dart';
 import 'utils/constants.dart';
 import 'services/notification_service.dart';
+import 'services/fcm_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -16,8 +21,23 @@ import 'providers/locale_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/community_provider.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // Handle background message here
+  debugPrint("Handling a background message: ${message.messageId}");
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔥 Initialize Firebase
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
 
   // 📦 Initialize Hive
   await Hive.initFlutter();
@@ -25,14 +45,19 @@ void main() async {
   await Hive.openBox('profileBox');
   await Hive.openBox('cacheBox');
 
-  // 🔔 Initialize local notifications
+  // 🔔 Initialize local notifications & FCM
   await NotificationService.init();
+  try {
+    await FCMService.initializeFCM();
+  } catch (e) {
+    debugPrint('FCM Init failed: $e');
+  }
 
-  runApp(const FarmerAIApp());
+  runApp(const AgriNovaApp());
 }
 
-class FarmerAIApp extends StatelessWidget {
-  const FarmerAIApp({super.key});
+class AgriNovaApp extends StatelessWidget {
+  const AgriNovaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +73,7 @@ class FarmerAIApp extends StatelessWidget {
       child: Consumer<LocaleProvider>(
         builder: (context, localeProvider, child) {
           return MaterialApp(
-            title: 'FarmerAI',
+            title: 'AgriNova',
             debugShowCheckedModeBanner: false,
             locale: localeProvider.locale,
             localizationsDelegates: [
@@ -143,12 +168,10 @@ class FarmerAIApp extends StatelessWidget {
               '/contractor': (_) => const ContractorDashboard(),
               '/contracts': (_) => const ContractsScreen(),
               '/machinery': (_) => const MachineryScreen(),
+              '/notifications': (_) => const NotificationsScreen(),
+              '/splash': (_) => const SplashScreen(),
             },
-            home: profileDone
-                ? (box.get('role') == 'contractor'
-                    ? const ContractorDashboard()
-                    : const HomeScreen())
-                : const LoginScreen(),
+            home: const SplashScreen(),
           );
         },
       ),

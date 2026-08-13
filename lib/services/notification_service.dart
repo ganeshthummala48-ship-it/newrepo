@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -69,6 +70,60 @@ class NotificationService {
       'community_alerts',
       'Community Alerts',
       channelDescription: 'Notifications for Farmers Community',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      icon: '@mipmap/ic_launcher',
+    );
+    const iosDetails = DarwinNotificationDetails();
+    await _plugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+    );
+  }
+
+  /// Shown when inquiry/contract status changes (accept, reject, counter, etc.)
+  static Future<void> showContractNotification({
+    required String title,
+    required String body,
+    required int id,
+  }) async {
+    await init();
+    const androidDetails = AndroidNotificationDetails(
+      'contract_updates',
+      'Contract Updates',
+      channelDescription:
+          'Notifications about farmer–contractor contract status changes',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: Color(0xFF2E7D32),
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    await _plugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+    );
+  }
+
+  /// Shown when a new contractor listing is added to the platform
+  static Future<void> showNewListingNotification({
+    required String title,
+    required String body,
+    required int id,
+  }) async {
+    await init();
+    const androidDetails = AndroidNotificationDetails(
+      'new_listings',
+      'New Listings',
+      channelDescription: 'Notifications when contractors post new services',
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
       icon: '@mipmap/ic_launcher',

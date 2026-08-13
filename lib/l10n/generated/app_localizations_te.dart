@@ -682,4 +682,10 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get tapToCallAction => 'కాల్ చేయడానికి నొక్కండి';
+
+  @override
+  String get myBookings => 'My Bookings';
+
+  @override
+  String get myBookingsSubtitle => 'Supplies & Fertilizer Orders';
 }

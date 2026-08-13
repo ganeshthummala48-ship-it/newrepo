@@ -29,6 +29,10 @@ dependencies:
   intl: any
   flutter_localizations:
     sdk: flutter
+  firebase_core: ^4.12.1
+  firebase_messaging: ^16.4.3
+  cloud_firestore: ^6.7.1
+  web_socket_channel: ^3.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

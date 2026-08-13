@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/community_post.dart';
 import '../utils/constants.dart';
 import '../services/notification_service.dart';
@@ -7,37 +9,94 @@ import '../services/cache_service.dart';
 import 'dart:convert';
 
 class CommunityProvider with ChangeNotifier {
-  final List<CommunityPost> _posts = [
-    CommunityPost(
-      id: 'post_1',
-      author: 'Ramesh Kumar',
-      location: 'Kurnool, AP',
-      content: 'Has anyone tried the new Hybrid Rice Seeds? I\'m seeing great results in the first few weeks!',
-      likes: ['user_2', 'user_3'],
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      avatar: 'RK',
-      comments: [
-        CommunityComment(
-          id: 'c1',
-          author: 'Sita Ram',
-          content: 'Yes, Ramesh! The yield is much better than traditional seeds.',
-          timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-        ),
-      ],
-    ),
-    CommunityPost(
-      id: 'post_2',
-      author: 'Suresh Reddy',
-      location: 'Warangal, TS',
-      content: 'Tip for the season: Using Urea along with Organic Manure has significantly improved my soil texture this year.',
-      likes: ['user_1'],
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      avatar: 'SR',
-    ),
-  ];
+  List<CommunityPost> _posts = [];
   String? _currentLang;
+  WebSocketChannel? _channel;
+  bool _isConnected = false;
 
   List<CommunityPost> get posts => [..._posts];
+
+  CommunityProvider() {
+    _initWebSocket();
+  }
+
+  void _initWebSocket() {
+    final box = Hive.box('userBox');
+    final userId = box.get('phone', defaultValue: 'guest_${DateTime.now().millisecondsSinceEpoch}');
+    final wsUrl = '${AppConstants.baseUrl.replaceFirst('http', 'ws')}/ws/community/$userId';
+    
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      _isConnected = true;
+      
+      _channel!.stream.listen((message) {
+        final data = jsonDecode(message);
+        _handleIncomingMessage(data);
+      }, onDone: () {
+        _isConnected = false;
+        // Reconnect logic can be added here if needed
+      }, onError: (error) {
+        _isConnected = false;
+        debugPrint('WebSocket error: $error');
+      });
+    } catch (e) {
+      debugPrint('Error connecting to websocket: $e');
+    }
+  }
+
+  void _handleIncomingMessage(Map<String, dynamic> data) {
+    final type = data['type'];
+    final payload = data['data'];
+
+    if (type == 'init') {
+      _posts = (payload as List).map((p) => CommunityPost.fromJson(p)).toList();
+      if (_currentLang != null) {
+        translatePosts(_currentLang!);
+      } else {
+        notifyListeners();
+      }
+    } else if (type == 'new_post') {
+      final post = CommunityPost.fromJson(payload);
+      _posts.insert(0, post);
+      
+      if (_currentLang != null) {
+        _translatePost(0, _currentLang!);
+      } else {
+        notifyListeners();
+      }
+      
+      NotificationService.showCommunityNotification(
+        id: post.id.hashCode,
+        title: 'New Community Post',
+        body: '${post.author}: ${post.content}',
+      );
+    } else if (type == 'new_comment') {
+      final postId = payload['post_id'];
+      final comment = CommunityComment.fromJson(payload['comment']);
+      
+      final postIndex = _posts.indexWhere((p) => p.id == postId);
+      if (postIndex != -1) {
+        final post = _posts[postIndex];
+        final newComments = List<CommunityComment>.from(post.comments)..add(comment);
+        _posts[postIndex] = post.copyWith(comments: newComments);
+        
+        if (_currentLang != null) {
+          _translateComment(postIndex, newComments.length - 1, _currentLang!);
+        } else {
+          notifyListeners();
+        }
+      }
+    } else if (type == 'update_likes') {
+      final postId = payload['post_id'];
+      final likes = List<String>.from(payload['likes']);
+      
+      final postIndex = _posts.indexWhere((p) => p.id == postId);
+      if (postIndex != -1) {
+        _posts[postIndex] = _posts[postIndex].copyWith(likes: likes);
+        notifyListeners();
+      }
+    }
+  }
 
   Future<void> translatePosts(String lang) async {
     if (lang == 'en' || lang == _currentLang) return;
@@ -49,6 +108,7 @@ class CommunityProvider with ChangeNotifier {
   }
 
   Future<void> _translatePost(int index, String lang) async {
+    if (index >= _posts.length) return;
     final post = _posts[index];
     final cacheKeyContent = 'trans_post_${post.id}_$lang';
     final cacheKeyLoc = 'trans_loc_${post.id}_$lang';
@@ -79,20 +139,25 @@ class CommunityProvider with ChangeNotifier {
     }
 
     if (transContent != null || transLoc != null) {
-      _posts[index] = post.copyWith(
-        translatedContent: transContent,
-        translatedLocation: transLoc,
-      );
-      notifyListeners();
+      if (index < _posts.length) {
+        _posts[index] = _posts[index].copyWith(
+          translatedContent: transContent,
+          translatedLocation: transLoc,
+        );
+        notifyListeners();
+      }
     }
 
     // Also translate comments
-    for (int j = 0; j < post.comments.length; j++) {
-      _translateComment(index, j, lang);
+    if (index < _posts.length) {
+      for (int j = 0; j < _posts[index].comments.length; j++) {
+        _translateComment(index, j, lang);
+      }
     }
   }
 
   Future<void> _translateComment(int postIndex, int commentIndex, String lang) async {
+    if (postIndex >= _posts.length || commentIndex >= _posts[postIndex].comments.length) return;
     final post = _posts[postIndex];
     final comment = post.comments[commentIndex];
     final cacheKey = 'trans_comment_${comment.id}_$lang';
@@ -113,77 +178,51 @@ class CommunityProvider with ChangeNotifier {
     }
 
     if (transContent != null) {
-      final List<CommunityComment> newComments = List.from(_posts[postIndex].comments);
-      newComments[commentIndex] = comment.copyWith(translatedContent: transContent);
-      _posts[postIndex] = _posts[postIndex].copyWith(comments: newComments);
-      notifyListeners();
+      if (postIndex < _posts.length && commentIndex < _posts[postIndex].comments.length) {
+        final List<CommunityComment> newComments = List.from(_posts[postIndex].comments);
+        newComments[commentIndex] = newComments[commentIndex].copyWith(translatedContent: transContent);
+        _posts[postIndex] = _posts[postIndex].copyWith(comments: newComments);
+        notifyListeners();
+      }
     }
   }
 
-  // Add the imports needed for LANG_NAMES check or define them here too
-  // For simplicity, I'll copy the map here if needed, but it's better to share.
-  // Actually, SchemesScreen is already in the project.
-  // Wait, I need to import SchemesScreen if I use its static member.
-  // Better yet, just put the map in constants.
-
-
   void addPost(String author, String location, String content, String avatar) {
-    final newPost = CommunityPost(
-      id: DateTime.now().toString(),
-      author: author,
-      location: location,
-      content: content,
-      likes: [],
-      timestamp: DateTime.now(),
-      avatar: avatar,
-    );
-    _posts.insert(0, newPost);
-    notifyListeners();
+    if (_isConnected && _channel != null) {
+      _channel!.sink.add(jsonEncode({
+        'type': 'new_post',
+        'author': author,
+        'location': location,
+        'content': content,
+        'avatar': avatar,
+      }));
+    }
   }
 
   void toggleLike(String postId, String userId) {
-    final postIndex = _posts.indexWhere((p) => p.id == postId);
-    if (postIndex != -1) {
-      final post = _posts[postIndex];
-      final List<String> newlikes = List.from(post.likes);
-      if (newlikes.contains(userId)) {
-        newlikes.remove(userId);
-      } else {
-        newlikes.add(userId);
-      }
-      _posts[postIndex] = post.copyWith(likes: newlikes);
-      notifyListeners();
+    if (_isConnected && _channel != null) {
+      _channel!.sink.add(jsonEncode({
+        'type': 'toggle_like',
+        'post_id': postId,
+        'user_id': userId,
+      }));
     }
   }
 
   void addComment(String postId, String author, String content) {
-    final postIndex = _posts.indexWhere((p) => p.id == postId);
-    if (postIndex != -1) {
-      final post = _posts[postIndex];
-      final newComment = CommunityComment(
-        id: DateTime.now().toString(),
-        author: author,
-        content: content,
-        timestamp: DateTime.now(),
-      );
-      final List<CommunityComment> newComments = List.from(post.comments)..add(newComment);
-      _posts[postIndex] = post.copyWith(comments: newComments);
-      notifyListeners();
+    if (_isConnected && _channel != null) {
+      _channel!.sink.add(jsonEncode({
+        'type': 'add_comment',
+        'post_id': postId,
+        'author': author,
+        'content': content,
+      }));
     }
   }
 
-  // Simulation of a real-time notification from another farmer
-  void simulateIncomingPost() {
-    Future.delayed(const Duration(seconds: 5), () {
-      const author = 'Venkat Rao';
-      const content = 'Quick question: Any recommendations for a good irrigation system for small farms?';
-      addPost(author, 'Nizamabad, TS', content, 'VR');
-      
-      NotificationService.showCommunityNotification(
-        id: 100,
-        title: 'New Community Post',
-        body: '$author: $content',
-      );
-    });
+  @override
+  void dispose() {
+    _channel?.sink.close();
+    super.dispose();
   }
 }

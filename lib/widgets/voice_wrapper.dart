@@ -26,12 +26,15 @@ class _VoiceWrapperState extends State<VoiceWrapper>
   bool _isExpanded = false;
   String _partialText = '';
   bool _showListeningOverlay = false;
+  bool _handsFreeMode = false;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   late AnimationController _expandController;
   late Animation<double> _expandAnimation;
   late AnimationController _waveController;
+  late AnimationController _handsFreeController;
+  late Animation<double> _handsFreeAnimation;
 
   @override
   void initState() {
@@ -60,14 +63,26 @@ class _VoiceWrapperState extends State<VoiceWrapper>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+
+    _handsFreeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    _handsFreeAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _handsFreeController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     VoiceService.removeStateListener(_onVoiceStateChanged);
+    if (_handsFreeMode) {
+      VoiceService.stopWakeWordListening();
+    }
     _pulseController.dispose();
     _expandController.dispose();
     _waveController.dispose();
+    _handsFreeController.dispose();
     super.dispose();
   }
 
@@ -106,15 +121,53 @@ class _VoiceWrapperState extends State<VoiceWrapper>
     await VoiceService.speakInProfileLanguage(content, context);
   }
 
+  // ----------------------------------------------------------------
+  // Hands-Free Mode toggle
+  // ----------------------------------------------------------------
+
+  Future<void> _toggleHandsFree() async {
+    if (_handsFreeMode) {
+      // Turn OFF
+      await VoiceService.stopWakeWordListening();
+      _handsFreeController.stop();
+      _handsFreeController.reset();
+      setState(() => _handsFreeMode = false);
+    } else {
+      // Turn ON
+      final langCode = VoiceService.getLanguageCode(context);
+      setState(() => _handsFreeMode = true);
+      _handsFreeController.repeat(reverse: true);
+      await VoiceService.startWakeWordListening(langCode, _onWakeWordDetected);
+    }
+  }
+
+  /// Called by VoiceService when the wake word is heard.
+  void _onWakeWordDetected() {
+    if (!mounted) return;
+    // Auto-trigger the command mic flow
+    _onMicTap();
+  }
+
+  // ----------------------------------------------------------------
+  // Command listening
+  // ----------------------------------------------------------------
+
   Future<void> _onMicTap() async {
     if (_voiceState == VoiceState.listening) {
       await VoiceService.stopListening();
       setState(() => _showListeningOverlay = false);
+      // Resume wake-word loop after manual stop
+      if (_handsFreeMode) VoiceService.resumeWakeWord();
       return;
     }
 
-    await VoiceService.stop(); // Stop any ongoing speech
+    // Pause wake-word loop so it doesn't conflict
+    if (_handsFreeMode) VoiceService.pauseWakeWord();
+
+    // Capture context-dependent values before any await
     final langCode = VoiceService.getLanguageCode(context);
+
+    await VoiceService.stop(); // Stop any ongoing speech
 
     setState(() {
       _showListeningOverlay = true;
@@ -134,35 +187,38 @@ class _VoiceWrapperState extends State<VoiceWrapper>
 
     setState(() => _showListeningOverlay = false);
 
-    if (result.isEmpty) return;
+    if (result.isNotEmpty) {
+      // Parse the command
+      final command = VoiceCommandService.parseCommand(result, langCode);
 
-    // Parse the command
-    final command = VoiceCommandService.parseCommand(result, langCode);
+      if (command != null) {
+        // Speak the navigation feedback
+        final navMessage = VoiceCommandService.getNavigatingMessage(command.screenLabel, langCode);
+        await VoiceService.speak(navMessage, langCode);
 
-    if (command != null) {
-      // Speak the navigation feedback
-      final navMessage = VoiceCommandService.getNavigatingMessage(command.screenLabel, langCode);
-      await VoiceService.speak(navMessage, langCode);
+        // Small delay for the user to hear feedback
+        await Future.delayed(const Duration(milliseconds: 800));
 
-      // Small delay for the user to hear feedback
-      await Future.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
 
-      if (!mounted) return;
-
-      // Navigate
-      if (command.routeName != null) {
-        Navigator.pushNamed(context, command.routeName!);
-      } else if (command.screen != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => command.screen!),
-        );
+        // Navigate
+        if (command.routeName != null) {
+          Navigator.pushNamed(context, command.routeName!);
+        } else if (command.screen != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => command.screen!),
+          );
+        }
+      } else {
+        // Didn't understand
+        final msg = VoiceCommandService.getNotUnderstoodMessage(langCode);
+        await VoiceService.speak(msg, langCode);
       }
-    } else {
-      // Didn't understand
-      final msg = VoiceCommandService.getNotUnderstoodMessage(langCode);
-      await VoiceService.speak(msg, langCode);
     }
+
+    // Resume wake-word loop after command finished
+    if (_handsFreeMode) VoiceService.resumeWakeWord();
   }
 
   @override
@@ -198,6 +254,19 @@ class _VoiceWrapperState extends State<VoiceWrapper>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Hands-Free toggle button
+                _buildActionButton(
+                  icon: _handsFreeMode
+                      ? Icons.hearing_rounded
+                      : Icons.hearing_disabled_rounded,
+                  label: _handsFreeMode ? 'Hands-Free ON' : 'Hands-Free',
+                  color: _handsFreeMode
+                      ? const Color(0xFFFFB300)  // amber when active
+                      : const Color(0xFF78909C), // grey when off
+                  isActive: _handsFreeMode,
+                  onTap: _toggleHandsFree,
+                ),
+                const SizedBox(height: 8),
                 // Mic button
                 _buildActionButton(
                   icon: Icons.mic_rounded,
@@ -250,36 +319,69 @@ class _VoiceWrapperState extends State<VoiceWrapper>
             child: child,
           );
         },
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: isActive
-                  ? [const Color(0xFF66BB6A), const Color(0xFF43A047)]
-                  : [const Color(0xFF388E3C), const Color(0xFF2E7D32)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF43A047).withValues(alpha: 0.4),
-                blurRadius: isActive ? 16 : 8,
-                spreadRadius: isActive ? 2 : 0,
-                offset: const Offset(0, 4),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: isActive
+                      ? [const Color(0xFF66BB6A), const Color(0xFF43A047)]
+                      : [const Color(0xFF388E3C), const Color(0xFF2E7D32)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF43A047).withValues(alpha: 0.4),
+                    blurRadius: isActive ? 16 : 8,
+                    spreadRadius: isActive ? 2 : 0,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              _isExpanded ? Icons.close_rounded : Icons.record_voice_over_rounded,
-              key: ValueKey(_isExpanded),
-              color: Colors.white,
-              size: 26,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  _isExpanded ? Icons.close_rounded : Icons.record_voice_over_rounded,
+                  key: ValueKey(_isExpanded),
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
             ),
-          ),
+            // Hands-Free indicator dot
+            if (_handsFreeMode)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: AnimatedBuilder(
+                  animation: _handsFreeAnimation,
+                  builder: (context, _) {
+                    return Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFFB300).withValues(
+                          alpha: _handsFreeAnimation.value,
+                        ),
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFFB300).withValues(alpha: 0.6),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -364,6 +466,7 @@ class _VoiceWrapperState extends State<VoiceWrapper>
         onTap: () async {
           await VoiceService.stopListening();
           setState(() => _showListeningOverlay = false);
+          if (_handsFreeMode) VoiceService.resumeWakeWord();
         },
         child: Container(
           color: Colors.black.withValues(alpha: 0.6),
@@ -385,6 +488,38 @@ class _VoiceWrapperState extends State<VoiceWrapper>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Hands-free badge
+                      if (_handsFreeMode)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFB300).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFFFB300).withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.hearing_rounded,
+                                  color: Color(0xFFFFB300), size: 14),
+                              SizedBox(width: 4),
+                              Text(
+                                'Hands-Free',
+                                style: TextStyle(
+                                  color: Color(0xFFFFB300),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Animated mic icon
                       AnimatedBuilder(
                         animation: _waveController,
@@ -476,16 +611,16 @@ class _VoiceWrapperState extends State<VoiceWrapper>
 
   String _getHintText(String langCode) {
     final hints = {
-      'hi': 'कहें: "बाजार", "रोग पहचान", "एआई सहायक"...',
-      'te': 'చెప్పండి: "మార్కెట్", "రోగం", "AI అసిస్టెంట్"...',
-      'ta': 'சொல்லுங்கள்: "சந்தை", "நோய்", "AI உதவியாளர்"...',
-      'kn': 'ಹೇಳಿ: "ಮಾರುಕಟ್ಟೆ", "ರೋಗ", "AI ಸಹಾಯಕ"...',
-      'bn': 'বলুন: "বাজার", "রোগ", "AI সহকারী"...',
-      'mr': 'सांगा: "बाजार", "रोग", "AI सहाय्यक"...',
-      'gu': 'કહો: "બજાર", "રોગ", "AI સહાયક"...',
-      'ml': 'പറയൂ: "വിപണി", "രോഗം", "AI സഹായി"...',
-      'pa': 'ਬੋਲੋ: "ਮੰਡੀ", "ਰੋਗ", "AI ਸਹਾਇਕ"...',
-      'or': 'କୁହନ୍ତୁ: "ବଜାର", "ରୋଗ", "AI ସହାୟକ"...',
+      'hi': 'à¤•à¤¹à¥‡à¤‚: "à¤¬à¤¾à¤œà¤¾à¤°", "à¤°à¥‹à¤— à¤ªà¤¹à¤šà¤¾à¤¨", "à¤à¤†à¤ˆ à¤¸à¤¹à¤¾à¤¯à¤•"...',
+      'te': 'à°šà±†à°ªà±à°ªà°‚à°¡à°¿: "à°®à°¾à°°à±à°•à±†à°Ÿà±", "à°°à±‹à°—à°‚", "AI à°…à°¸à°¿à°¸à±à°Ÿà±†à°‚à°Ÿà±"...',
+      'ta': 'à®šà¯Šà®²à¯à®²à¯à®™à¯à®•à®³à¯: "à®šà®¨à¯à®¤à¯ˆ", "à®¨à¯‹à®¯à¯", "AI à®‰à®¤à®µà®¿à®¯à®¾à®³à®°à¯"...',
+      'kn': 'à²¹à³‡à²³à²¿: "à²®à²¾à²°à³à²•à²Ÿà³à²Ÿà³†", "à²°à³‹à²—", "AI à²¸à²¹à²¾à²¯à²•"...',
+      'bn': 'à¦¬à¦²à§à¦¨: "à¦¬à¦¾à¦œà¦¾à¦°", "à¦°à§‹à¦—", "AI à¦¸à¦¹à¦•à¦¾à¦°à§€"...',
+      'mr': 'à¤¸à¤¾à¤‚à¤—à¤¾: "à¤¬à¤¾à¤œà¤¾à¤°", "à¤°à¥‹à¤—", "AI à¤¸à¤¹à¤¾à¤¯à¥à¤¯à¤•"...',
+      'gu': 'àª•àª¹à«‹: "àª¬àªœàª¾àª°", "àª°à«‹àª—", "AI àª¸àª¹àª¾àª¯àª•"...',
+      'ml': 'à´ªà´±à´¯àµ‚: "à´µà´¿à´ªà´£à´¿", "à´°àµ‹à´—à´‚", "AI à´¸à´¹à´¾à´¯à´¿"...',
+      'pa': 'à¨¬à©‹à¨²à©‹: "à¨®à©°à¨¡à©€", "à¨°à©‹à¨—", "AI à¨¸à¨¹à¨¾à¨‡à¨•"...',
+      'or': 'à¬•à­à¬¹à¬¨à­à¬¤à­: "à¬¬à¬œà¬¾à¬°", "à¬°à­‹à¬—", "AI à¬¸à¬¹à¬¾à­Ÿà¬•"...',
     };
     return hints[langCode] ?? 'Say: "Market", "Disease", "AI Assistant"...';
   }

@@ -686,4 +686,10 @@ class AppLocalizationsKn extends AppLocalizations {
 
   @override
   String get tapToCallAction => 'Tap to call';
+
+  @override
+  String get myBookings => 'My Bookings';
+
+  @override
+  String get myBookingsSubtitle => 'Supplies & Fertilizer Orders';
 }

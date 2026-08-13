@@ -42,6 +42,39 @@ class CommunityPost {
       translatedLocation: translatedLocation ?? this.translatedLocation,
     );
   }
+
+  factory CommunityPost.fromJson(Map<String, dynamic> json) {
+    return CommunityPost(
+      id: json['id'] as String,
+      author: json['author'] as String,
+      location: json['location'] as String,
+      content: json['content'] as String,
+      likes: List<String>.from(json['likes'] ?? []),
+      timestamp: DateTime.parse(json['timestamp']),
+      avatar: json['avatar'] as String,
+      comments: (json['comments'] as List<dynamic>?)
+              ?.map((c) => CommunityComment.fromJson(c))
+              .toList() ??
+          [],
+      translatedContent: json['translatedContent'] as String?,
+      translatedLocation: json['translatedLocation'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'author': author,
+      'location': location,
+      'content': content,
+      'likes': likes,
+      'timestamp': timestamp.toIso8601String(),
+      'avatar': avatar,
+      'comments': comments.map((c) => c.toJson()).toList(),
+      'translatedContent': translatedContent,
+      'translatedLocation': translatedLocation,
+    };
+  }
 }
 
 class CommunityComment {
@@ -69,5 +102,25 @@ class CommunityComment {
       timestamp: timestamp,
       translatedContent: translatedContent ?? this.translatedContent,
     );
+  }
+
+  factory CommunityComment.fromJson(Map<String, dynamic> json) {
+    return CommunityComment(
+      id: json['id'] as String,
+      author: json['author'] as String,
+      content: json['content'] as String,
+      timestamp: DateTime.parse(json['timestamp']),
+      translatedContent: json['translatedContent'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'author': author,
+      'content': content,
+      'timestamp': timestamp.toIso8601String(),
+      'translatedContent': translatedContent,
+    };
   }
 }

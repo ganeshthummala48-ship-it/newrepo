@@ -6,3 +6,8 @@ platform-tools/
 *.lnk
 *.db
 .pytest_cache/
+# Training datasets - too large for GitHub (GBs of images)
+data/deepweeds/
+data/fruits-360/
+# Build artifacts
+build/

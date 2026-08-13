@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
 
 class AIRecommendationCard extends StatelessWidget {
   final String crop;

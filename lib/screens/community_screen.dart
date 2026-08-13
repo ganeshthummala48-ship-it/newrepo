@@ -19,9 +19,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
   @override
   void initState() {
     super.initState();
-    // Simulate a real-time incoming post for demonstration
+    // Real-time updates handled by CommunityProvider WebSocket
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<CommunityProvider>(context, listen: false).simulateIncomingPost();
+      // Any initialization if needed
     });
   }
 

@@ -282,6 +282,45 @@ class _DiseaseScreenState extends State<DiseaseScreen> {
             ),
 
             const SizedBox(height: 24),
+            
+            // 🌿 Supported Crops & Diseases Quick Guide
+            Card(
+              elevation: 0,
+              color: Colors.green.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.green.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.verified_rounded, color: Colors.green.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          '14 Crops & 38 Diseases Supported',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.green.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'AI model detects health & disease for Tomato, Potato, Corn, Grape, Apple, Citrus, Pepper, Peach, Strawberry, Cherry, Soybean, Squash, Blueberry, and Raspberry.',
+                      style: TextStyle(fontSize: 12, color: Colors.green.shade800, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
 

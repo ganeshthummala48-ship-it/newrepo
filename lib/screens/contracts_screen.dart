@@ -9,6 +9,7 @@ import 'fertilizer_map_screen.dart';
 import 'machinery_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../widgets/voice_wrapper.dart';
+import 'contract_details_screen.dart';
 
 class ContractsScreen extends StatefulWidget {
   const ContractsScreen({super.key});
@@ -17,7 +18,8 @@ class ContractsScreen extends StatefulWidget {
   State<ContractsScreen> createState() => _ContractsScreenState();
 }
 
-class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProviderStateMixin {
+class _ContractsScreenState extends State<ContractsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedType = 'All';
   List<dynamic> _contractors = [];
@@ -26,7 +28,14 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
   String? _recommendationCrop;
   bool _isLoading = true;
 
-  final List<String> _types = ['All', 'Machinery', 'Labour', 'Fertilizers', 'Irrigation', 'Logistics'];
+  final List<String> _types = [
+    'All',
+    'Machinery',
+    'Labour',
+    'Fertilizers',
+    'Irrigation',
+    'Logistics'
+  ];
 
   @override
   void initState() {
@@ -44,7 +53,8 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
     final name = box.get('name');
     final lang = Localizations.localeOf(context).languageCode;
     try {
-      final response = await http.get(Uri.parse('${AppConstants.baseUrl}/inquiries?user=$name&role=farmer&lang=$lang'));
+      final response = await http.get(Uri.parse(
+          '${AppConstants.baseUrl}/inquiries?user=$name&role=farmer&lang=$lang'));
       if (response.statusCode == 200) {
         setState(() {
           _myInquiries = jsonDecode(response.body)['inquiries'];
@@ -60,9 +70,11 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
     setState(() => _isLoading = true);
     final lang = Localizations.localeOf(context).languageCode;
     try {
-      final typeQuery = _selectedType == 'All' ? '' : '?type=${_selectedType.toLowerCase()}';
+      final typeQuery =
+          _selectedType == 'All' ? '' : '?type=${_selectedType.toLowerCase()}';
       final joinChar = typeQuery.contains('?') ? '&' : '?';
-      final response = await http.get(Uri.parse('${AppConstants.baseUrl}/listings${typeQuery}${joinChar}lang=$lang'));
+      final response = await http.get(Uri.parse(
+          '${AppConstants.baseUrl}/listings${typeQuery}${joinChar}lang=$lang'));
       if (response.statusCode == 200) {
         setState(() {
           final items = jsonDecode(response.body)['items'] as List<dynamic>;
@@ -70,7 +82,9 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
         });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -104,11 +118,16 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
           ],
         ),
       ),
-      floatingActionButton: (_selectedType == 'Fertilizers' || _contractors.any((l) => l['type'] == 'fertilizers'))
+      floatingActionButton: (_selectedType == 'Fertilizers' ||
+              _contractors.any((l) => l['type'] == 'fertilizers'))
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => FertilizerMapScreen(initialListings: _contractors.where((l) => l['type'] == 'fertilizers').toList())),
+                MaterialPageRoute(
+                    builder: (context) => FertilizerMapScreen(
+                        initialListings: _contractors
+                            .where((l) => l['type'] == 'fertilizers')
+                            .toList())),
               ),
               label: Text(l10n.locateFertilizer),
               icon: const Icon(Icons.map_outlined),
@@ -149,7 +168,7 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _contractors.isEmpty
-                   ? Center(child: Text(l10n.noContractorsFound))
+                  ? Center(child: Text(l10n.noContractorsFound))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _contractors.length,
@@ -165,24 +184,337 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
 
   Widget _buildMyRequestsTab() {
     final l10n = AppLocalizations.of(context)!;
-     if (_myInquiries.isEmpty) return Center(child: Text(l10n.noRequestsYet));
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _myInquiries.length,
-      itemBuilder: (context, index) {
-         final req = _myInquiries[index];
-         final status = req['status'].toString().toUpperCase();
-         final color = status == 'ACCEPTED' ? Colors.green : (status == 'REJECTED' ? Colors.red : Colors.amber);
-         
-         return Card(
-           child: ListTile(
-             leading: CircleAvatar(backgroundColor: color, child: const Icon(Icons.request_quote, color: Colors.white)),
-             title: Text('Offer: ${req['offer_amount']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-             subtitle: Text('To: ${req['contractor_name']} • Status: $status'),
-             trailing: const Icon(Icons.chevron_right),
-           ),
-         );
-      },
+    if (_myInquiries.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.handshake_outlined,
+                size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(l10n.noRequestsYet,
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+            const SizedBox(height: 8),
+            Text('Browse services and send an offer to get started.',
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _fetchMyInquiries,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _myInquiries.length,
+        itemBuilder: (context, index) {
+          final req = _myInquiries[index];
+          return _buildRequestCard(req);
+        },
+      ),
+    );
+  }
+
+  // ── Progress stages for the stepper ──────────────────────────────────────
+  static const _stages = [
+    'pending',
+    'counter',
+    'accepted',
+    'active',
+    'completed',
+    'reviewed'
+  ];
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'counter':
+        return Colors.indigo;
+      case 'accepted':
+        return Colors.blue;
+      case 'active':
+        return Colors.green;
+      case 'completed':
+        return Colors.teal;
+      case 'reviewed':
+        return Colors.purple;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Icons.schedule;
+      case 'counter':
+        return Icons.compare_arrows;
+      case 'accepted':
+        return Icons.check_circle_outline;
+      case 'active':
+        return Icons.play_circle_outline;
+      case 'completed':
+        return Icons.task_alt;
+      case 'reviewed':
+        return Icons.star_outline;
+      case 'rejected':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.info_outline;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Request Sent';
+      case 'counter':
+        return 'Counter Offer Received';
+      case 'accepted':
+        return 'Contract Accepted';
+      case 'active':
+        return 'Work In Progress';
+      case 'completed':
+        return 'Work Completed';
+      case 'reviewed':
+        return 'Reviewed';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status.toUpperCase();
+    }
+  }
+
+  Widget _buildRequestCard(dynamic req) {
+    final status = req['status'].toString().toLowerCase();
+    final isRejected = status == 'rejected';
+    final color = isRejected ? Colors.red : _statusColor(status);
+    final stageIndex = _stages.indexOf(status);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ContractDetailsScreen(
+                inquiry: req,
+                role: 'farmer',
+              ),
+            ),
+          );
+          _fetchMyInquiries();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header row: who & what ─────────────────────────────────
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: color.withOpacity(0.15),
+                    child: Icon(_statusIcon(status), color: color, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Requesting: ${req['contractor_name']}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Offer: ${req['offer_amount']}',
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Status badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withOpacity(0.4)),
+                    ),
+                    child: Text(
+                      _statusLabel(status),
+                      style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+
+              if (req['message'] != null &&
+                  req['message'].toString().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '"${req['message']}"',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey.shade600),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 14),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+
+              // ── Progress stepper (hidden if rejected) ─────────────────
+              if (!isRejected) ...[
+                Text('Progress',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade500,
+                        letterSpacing: 0.8)),
+                const SizedBox(height: 8),
+                _buildProgressStepper(stageIndex, color),
+                const SizedBox(height: 12),
+              ] else ...[
+                Row(
+                  children: [
+                    Icon(Icons.cancel, color: Colors.red.shade300, size: 16),
+                    const SizedBox(width: 6),
+                    Text('This request was rejected.',
+                        style: TextStyle(
+                            color: Colors.red.shade400,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // ── Footer ─────────────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    req['timestamp'] != null
+                        ? req['timestamp'].toString().substring(0, 10)
+                        : '',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                  ),
+                  Row(
+                    children: [
+                      Text('View Details',
+                          style: TextStyle(
+                              color: AppConstants.primaryColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_ios,
+                          size: 11, color: AppConstants.primaryColor),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressStepper(int currentStageIndex, Color activeColor) {
+    // Only show the main linear flow stages (not 'counter' which is a sub-state of pending)
+    final displayStages = [
+      {'key': 'pending', 'label': 'Sent'},
+      {'key': 'accepted', 'label': 'Accepted'},
+      {'key': 'active', 'label': 'Active'},
+      {'key': 'completed', 'label': 'Done'},
+      {'key': 'reviewed', 'label': 'Reviewed'},
+    ];
+
+    // Map current stage index to display stage index
+    int displayIndex = currentStageIndex;
+    // 'counter' (index 1) is between 'pending' (index 0) and 'accepted' (index 2)
+    // Map it to display index 0 (still in Sent phase with negotiation)
+    if (currentStageIndex == 1)
+      displayIndex = 0; // counter => Sent phase
+    else if (currentStageIndex >= 2) displayIndex = currentStageIndex - 1;
+
+    return Row(
+      children: List.generate(displayStages.length * 2 - 1, (i) {
+        if (i.isOdd) {
+          // Connector line
+          final lineIndex = i ~/ 2;
+          final filled = displayIndex > lineIndex;
+          return Expanded(
+            child: Container(
+              height: 3,
+              color: filled ? activeColor : Colors.grey.shade200,
+            ),
+          );
+        }
+        final stepIndex = i ~/ 2;
+        final isCompleted = displayIndex > stepIndex;
+        final isCurrent = displayIndex == stepIndex;
+        final stepColor =
+            isCompleted || isCurrent ? activeColor : Colors.grey.shade300;
+        return Column(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: isCompleted
+                    ? activeColor
+                    : (isCurrent
+                        ? activeColor.withOpacity(0.2)
+                        : Colors.grey.shade100),
+                shape: BoxShape.circle,
+                border: Border.all(color: stepColor, width: 2),
+              ),
+              child: isCompleted
+                  ? Icon(Icons.check, size: 12, color: Colors.white)
+                  : isCurrent
+                      ? Icon(Icons.circle, size: 8, color: activeColor)
+                      : null,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              displayStages[stepIndex]['label']!,
+              style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: isCurrent || isCompleted
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  color: isCurrent || isCompleted
+                      ? activeColor
+                      : Colors.grey.shade400),
+            ),
+          ],
+        );
+      }),
     );
   }
 
@@ -215,7 +547,8 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
                 if (type == 'Machinery') {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const MachineryScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const MachineryScreen()),
                   );
                   return; // Don't change selected state or fetch, let user return to Contracts if they want
                 }
@@ -244,39 +577,78 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: AppConstants.primaryColor.withValues(alpha: 0.1),
-                  child: Text(c['contractor_name'][0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: AppConstants.primaryColor)),
+                  backgroundColor:
+                      AppConstants.primaryColor.withValues(alpha: 0.1),
+                  child: Text(c['contractor_name'][0].toUpperCase(),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppConstants.primaryColor)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(c['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                       Text('${c['contractor_name']}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)), 
+                      Text(c['title'],
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text('${c['contractor_name']}',
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 13)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${c['contractor_rating'] ?? 4.5}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
                 if (c['price'] != null && c['price'].isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
-                    child: Text(c['price'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Text(c['price'],
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.green)),
                   ),
               ],
             ),
             const Divider(height: 24),
-            if (c['extra_fields'] != null && (c['extra_fields'] as Map).isNotEmpty) ...[
+            if (c['extra_fields'] != null &&
+                (c['extra_fields'] as Map).isNotEmpty) ...[
               Wrap(
                 spacing: 12,
                 runSpacing: 8,
                 children: (c['extra_fields'] as Map).entries.map((e) {
                   final key = e.key.toString().toLowerCase();
-                  final localizedKey = key == 'stock' ? l10n.stock : (key == 'composition' ? l10n.composition : (key == 'model' ? l10n.model : (key == 'hp' ? l10n.hp : key.toUpperCase())));
+                  final localizedKey = key == 'stock'
+                      ? l10n.stock
+                      : (key == 'composition'
+                          ? l10n.composition
+                          : (key == 'model'
+                              ? l10n.model
+                              : (key == 'hp' ? l10n.hp : key.toUpperCase())));
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(20)),
-                    child: Text('$localizedKey: ${e.value}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(20)),
+                    child: Text('$localizedKey: ${e.value}',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue)),
                   );
                 }).toList(),
               ),
@@ -294,36 +666,44 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
-                    const Icon(Icons.phone, size: 16, color: AppConstants.primaryColor),
+                    const Icon(Icons.phone,
+                        size: 16, color: AppConstants.primaryColor),
                     const SizedBox(width: 8),
                     Text(c['contact'] ?? 'No contact info',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: (c['contact'] != null && c['contact'].toString().isNotEmpty)
+                          color: (c['contact'] != null &&
+                                  c['contact'].toString().isNotEmpty)
                               ? Colors.green.shade700
                               : Colors.grey,
-                          decoration: (c['contact'] != null && c['contact'].toString().isNotEmpty)
+                          decoration: (c['contact'] != null &&
+                                  c['contact'].toString().isNotEmpty)
                               ? TextDecoration.underline
                               : TextDecoration.none,
                         )),
-                    if (c['contact'] != null && c['contact'].toString().isNotEmpty) ...[
+                    if (c['contact'] != null &&
+                        c['contact'].toString().isNotEmpty) ...[
                       const SizedBox(width: 8),
-                      Text('Tap to call', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      Text('Tap to call',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade500)),
                     ],
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 8),
-             Text(c['description'] ?? l10n.noDescription, style: TextStyle(color: Colors.grey.shade700)),
+            Text(c['description'] ?? l10n.noDescription,
+                style: TextStyle(color: Colors.grey.shade700)),
             const Divider(height: 32),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => _showContactDialog(c),
-                    style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 45)),
-                     child: Text(l10n.sendOfferNegotiate),
+                    style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 45)),
+                    child: Text(l10n.sendOfferNegotiate),
                   ),
                 ),
                 if (c['type'] == 'fertilizers') ...[
@@ -333,10 +713,14 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
                     child: IconButton.filled(
                       onPressed: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => FertilizerMapScreen(initialListings: [c])),
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                FertilizerMapScreen(initialListings: [c])),
                       ),
                       icon: const Icon(Icons.location_on),
-                      style: IconButton.styleFrom(backgroundColor: Colors.blue.shade700, foregroundColor: Colors.white),
+                      style: IconButton.styleFrom(
+                          backgroundColor: Colors.blue.shade700,
+                          foregroundColor: Colors.white),
                       tooltip: 'View on map',
                     ),
                   ),
@@ -356,54 +740,61 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-         title: Text(l10n.messageContractor(c['contractor_name'])),
+        title: Text(l10n.messageContractor(c['contractor_name'])),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-               Text(l10n.discussing(c['title'])),
+              Text(l10n.discussing(c['title'])),
               const SizedBox(height: 16),
               TextField(
                 controller: offerController,
                 keyboardType: TextInputType.number,
-                 decoration: InputDecoration(labelText: l10n.yourPriceOffer, border: const OutlineInputBorder()),
+                decoration: InputDecoration(
+                    labelText: l10n.yourPriceOffer,
+                    border: const OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: messageController,
-                 decoration: InputDecoration(labelText: l10n.messageSpecialReq, border: const OutlineInputBorder()),
+                decoration: InputDecoration(
+                    labelText: l10n.messageSpecialReq,
+                    border: const OutlineInputBorder()),
                 maxLines: 3,
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               final box = Hive.box('profileBox');
               final farmerName = box.get('name', defaultValue: 'Farmer');
-              
+
               final response = await http.post(
                 Uri.parse('${AppConstants.baseUrl}/create_inquiry'),
                 headers: {'Content-Type': 'application/json'},
                 body: jsonEncode({
                   'farmer_name': farmerName,
                   'contractor_name': c['contractor_name'],
-                  'listing_id': c['id'] ?? 0, 
+                  'listing_id': c['id'] ?? 0,
                   'offer_amount': '₹${offerController.text}',
                   'message': messageController.text,
                 }),
               );
-              
+
               if (mounted && response.statusCode == 200) {
                 Navigator.pop(context);
                 _fetchMyInquiries();
                 _tabController.animateTo(1); // Switch to "My Requests" tab
-                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.offerSentToContractor)));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.offerSentToContractor)));
               }
             },
-             child: Text(l10n.sendOffer),
+            child: Text(l10n.sendOffer),
           ),
         ],
       ),
@@ -416,29 +807,31 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-         title: Text(l10n.aiFertilizerExpert),
+        title: Text(l10n.aiFertilizerExpert),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-             Text(l10n.enterCropForAdvice),
+            Text(l10n.enterCropForAdvice),
             const SizedBox(height: 12),
             TextField(
               controller: cropController,
               decoration: InputDecoration(
-                 hintText: l10n.cropHintExample,
-                 border: const OutlineInputBorder(),
+                hintText: l10n.cropHintExample,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _fetchAIRecommendation(cropController.text);
             },
-             child: Text(l10n.getAdvice),
+            child: Text(l10n.getAdvice),
           ),
         ],
       ),
@@ -448,7 +841,8 @@ class _ContractsScreenState extends State<ContractsScreen> with SingleTickerProv
   Future<void> _fetchAIRecommendation(String crop) async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('${AppConstants.baseUrl}/recommendations/fertilizer?crop=$crop'));
+      final response = await http.get(Uri.parse(
+          '${AppConstants.baseUrl}/recommendations/fertilizer?crop=$crop'));
       if (response.statusCode == 200) {
         setState(() {
           _aiRecommendation = jsonDecode(response.body);

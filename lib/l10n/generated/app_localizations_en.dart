@@ -9,10 +9,10 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'FarmerAI';
+  String get appName => 'AgriNova';
 
   @override
-  String get welcome => 'Welcome to FarmerAI! 🌾';
+  String get welcome => 'Welcome to AgriNova! 🌾';
 
   @override
   String get welcomeSubtitle =>
@@ -96,7 +96,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get predictionHistory => 'Prediction History';
 
   @override
-  String get askFarmerAI => 'Ask FarmerAI';
+  String get askFarmerAI => 'Ask AgriNova';
 
   @override
   String get yieldAndProfit => 'Yield & Profit';
@@ -291,7 +291,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get analyzingRisks => 'Analyzing your risks...';
 
   @override
-  String get riskAnalysis => 'FarmerAI Risk Analysis';
+  String get riskAnalysis => 'AgriNova Risk Analysis';
 
   @override
   String get liveWeather => 'Live Weather';
@@ -487,7 +487,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generateCalendar => 'Generate Calendar';
 
   @override
-  String get namasteAI => 'Namaste! I am your FarmerAI.';
+  String get namasteAI => 'Namaste! I am your AgriNova.';
 
   @override
   String get askAnything =>
@@ -681,4 +681,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tapToCallAction => 'Tap to call';
+
+  @override
+  String get myBookings => 'My Bookings';
+
+  @override
+  String get myBookingsSubtitle => 'Supplies & Fertilizer Orders';
 }

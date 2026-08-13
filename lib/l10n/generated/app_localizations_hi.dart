@@ -683,4 +683,10 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get tapToCallAction => 'कॉल करने के लिए टैप करें';
+
+  @override
+  String get myBookings => 'My Bookings';
+
+  @override
+  String get myBookingsSubtitle => 'Supplies & Fertilizer Orders';
 }

@@ -4,7 +4,7 @@ import '../widgets/home_card.dart';
 import '../utils/constants.dart';
 import 'market_screen.dart';
 import 'crop_health_screen.dart';
-import 'crop_insight_screen.dart';
+import 'booking_screen.dart';
 import 'assistant_screen.dart';
 import 'yield_profit_screen.dart';
 import 'schemes_screen.dart';
@@ -15,9 +15,41 @@ import '../l10n/generated/app_localizations.dart';
 import 'community_screen.dart';
 import 'crop_screen.dart';
 import '../widgets/voice_wrapper.dart';
+import '../services/notification_polling_service.dart';
+import '../widgets/home/wave_painter.dart';
+import '../widgets/home/weather_hero_card.dart';
+import '../widgets/home/live_stats_ticker.dart';
+import '../widgets/home/activity_feed_section.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  NotificationPollingService? _pollingService;
+
+  @override
+  void initState() {
+    super.initState();
+    final box = Hive.box('profileBox');
+    final name = box.get('name', defaultValue: '') as String;
+    if (name.isNotEmpty) {
+      _pollingService = NotificationPollingService(
+        role: 'farmer',
+        name: name,
+        pollInterval: const Duration(seconds: 30),
+      )..start();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollingService?.stop();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +67,7 @@ class HomeScreen extends StatelessWidget {
             '${l10n.cropHealth}, ${l10n.diseaseDetection}. '
             '${l10n.contractsAndServices}, ${l10n.contractsSubtitle}. '
             '${l10n.marketPrices}, ${l10n.realTimeRates}. '
-            '${l10n.cropInsights}, ${l10n.recommendationCalendar}. '
+            '${l10n.myBookings}. '
             '${l10n.yieldAndProfit}, ${l10n.revenueEstimates}. '
             '${l10n.farmMap}, ${l10n.satelliteMonitoring}. '
             '${l10n.govtSchemes}, ${l10n.financialSupport}. '
@@ -53,8 +85,7 @@ class HomeScreen extends StatelessWidget {
               elevation: 0,
               actions: [
                 IconButton(
-                  icon:
-                      const Icon(Icons.groups_rounded, color: Colors.white),
+                  icon: const Icon(Icons.groups_rounded, color: Colors.white),
                   onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -64,11 +95,8 @@ class HomeScreen extends StatelessWidget {
                   icon: const Icon(Icons.notifications_active_rounded,
                       color: Colors.white),
                   onPressed: () {
-                    // Navigate to notifications or risk alerts
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const RiskAlertsScreen()));
+                    // Navigate to real-time unified notifications
+                    Navigator.pushNamed(context, '/notifications');
                   },
                 ),
                 Padding(
@@ -89,21 +117,22 @@ class HomeScreen extends StatelessWidget {
                 titlePadding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 title: const Text(
-                  'FarmerAI',
+                  'AgriNova',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.5,
                   ),
                 ),
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                background: AnimatedWaveBackground(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
-                  ),
                   child: Stack(
                     children: [
                       // Decorative elements
@@ -152,51 +181,12 @@ class HomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 24),
                               // Weather overview glassmorphism card
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.2)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange
-                                            .withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Icon(Icons.wb_sunny_rounded,
-                                          color: Colors.orangeAccent, size: 28),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Sunny, 32°C',
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16),
-                                          ),
-                                          Text(
-                                            l10n.predictionHistory, // just reusing existing string for now, will fix later if needed
-                                            style: TextStyle(
-                                                color: Colors.green.shade50,
-                                                fontSize: 12),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              WeatherHeroCard(
+                                location: 'Local Farm',
+                                temperature: '32°C',
+                                description: 'Sunny, optimal for harvesting.',
+                                icon: Icons.wb_sunny_rounded,
+                                onTap: () {}, // Can link to weather details later
                               ),
                             ],
                           ),
@@ -204,13 +194,36 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
+                ), // Container
+                ), // AnimatedWaveBackground
+              ), // FlexibleSpaceBar
+            ), // SliverAppBar
+
+            // Live Stats Ticker and Activity Feed
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  const LiveStatsTicker(
+                    items: [
+                      'Market: Tomato prices increased by ₹5/kg today.',
+                      'Weather Alert: Clear skies expected for the next 48 hours.',
+                      'New government subsidy for drip irrigation available.',
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ActivityFeedSection(
+                    title: 'Community & Alerts',
+                    onSeeAll: () {},
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
 
             // Grid content
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -296,14 +309,14 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   HomeCard(
-                    title: l10n.cropInsights,
-                    subtitle: l10n.recommendationCalendar,
-                    icon: Icons.grass_rounded,
-                    baseColor: Colors.green.shade600,
+                    title: l10n.myBookings,
+                    subtitle: l10n.myBookingsSubtitle,
+                    icon: Icons.receipt_long_rounded,
+                    baseColor: Colors.cyan.shade700,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const CropInsightScreen()),
+                          builder: (_) => BookingScreen(farmerName: farmerName)),
                     ),
                   ),
                   HomeCard(
