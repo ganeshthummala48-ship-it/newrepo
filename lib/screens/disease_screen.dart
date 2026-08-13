@@ -106,6 +106,26 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     }
   }
 
+  // 🛡️ Network Helper with Automatic Failover
+  Future<http.StreamedResponse> _sendWithFallback(http.MultipartRequest request) async {
+    try {
+      return await request.send().timeout(const Duration(seconds: 12));
+    } catch (e) {
+      debugPrint("Primary connection failed ($e). Retrying with Render production backend...");
+      final currentUrl = request.url.toString();
+      final renderUrl = currentUrl.contains(AppConstants.renderUrl)
+          ? currentUrl
+          : currentUrl.replaceFirst(AppConstants.baseUrl, AppConstants.renderUrl);
+      final fallbackRequest = http.MultipartRequest('POST', Uri.parse(renderUrl));
+      fallbackRequest.headers.addAll(request.headers);
+      fallbackRequest.fields.addAll(request.fields);
+      for (var file in request.files) {
+        fallbackRequest.files.add(file);
+      }
+      return await fallbackRequest.send().timeout(const Duration(seconds: 60));
+    }
+  }
+
   // 🍃 Mode 0: Disease Detection
   Future<void> _analyzeDisease(String lang) async {
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-disease');
@@ -115,7 +135,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+    final streamedResponse = await _sendWithFallback(request);
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
@@ -164,7 +184,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+    final streamedResponse = await _sendWithFallback(request);
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
@@ -201,7 +221,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     request.fields['lang'] = lang;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
 
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+    final streamedResponse = await _sendWithFallback(request);
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {

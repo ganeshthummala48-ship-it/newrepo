@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // 🔗 API Base URLs
-  static const String _localIP = '10.86.142.73';
-  static const String _renderUrl = 'https://newrepo-bhe1.onrender.com';
+  static const String _emulatorIP = '10.0.2.2';
+  static const String renderUrl = 'https://newrepo-bhe1.onrender.com';
 
   static String get baseUrl {
     if (kReleaseMode) {
-      return _renderUrl;
+      return renderUrl;
     }
-    // Debug mode: default to local server on port 8000
-    return 'http://$_localIP:8000';
+    // Debug mode: detect platform for zero-latency local development
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://$_emulatorIP:8000';
+    }
+    return 'http://127.0.0.1:8000';
   }
 
   // 🔑 API Keys
