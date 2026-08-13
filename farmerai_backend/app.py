@@ -13,5 +13,5 @@ demo = gr.Interface(
 # Mount FastAPI application onto Gradio
 app = gr.mount_gradio_app(fastapi_app, demo, path="/ui")
 
-# Launch Gradio with ssr_mode=False to bypass Node.js proxy port conflicts on port 7860
-demo.launch(server_name="0.0.0.0", server_port=7860, ssr_mode=False)
+if __name__ == "__main__":
+    demo.launch()
