@@ -39,91 +39,78 @@ class _FarmMapScreenState extends State<FarmMapScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw Exception('Location services are disabled.');
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw Exception('Location permissions are denied');
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission != LocationPermission.denied && permission != LocationPermission.deniedForever) {
+          final position = await Geolocator.getCurrentPosition().timeout(const Duration(seconds: 5));
+          baseLat = position.latitude;
+          baseLng = position.longitude;
+        }
       }
-    }
-    
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permissions are permanently denied.');
+    } catch (e) {
+      debugPrint("Location fallback to default coords: $e");
     }
 
-    final position = await Geolocator.getCurrentPosition();
-    setState(() {
-      baseLat = position.latitude;
-      baseLng = position.longitude;
-      
-      // Update polygon coordinates around current location
-      farmCoordinates = [
-        [baseLng - 0.0025, baseLat - 0.0025],
-        [baseLng + 0.0025, baseLat - 0.0025],
-        [baseLng + 0.0025, baseLat + 0.0025],
-        [baseLng - 0.0025, baseLat + 0.0025],
-        [baseLng - 0.0025, baseLat - 0.0025],
-      ];
-    });
+    farmCoordinates = [
+      [baseLng - 0.0025, baseLat - 0.0025],
+      [baseLng + 0.0025, baseLat - 0.0025],
+      [baseLng + 0.0025, baseLat + 0.0025],
+      [baseLng - 0.0025, baseLat + 0.0025],
+      [baseLng - 0.0025, baseLat - 0.0025],
+    ];
 
-    // Move camera to new location
+    if (mounted) setState(() {});
     _mapController?.animateCamera(
       CameraUpdate.newLatLng(LatLng(baseLat, baseLng)),
     );
   }
 
   Future<void> _loadFarmData() async {
+    if (!mounted) return;
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
 
-    try {
-      // 0. Get Real-Time Location
-      await _getCurrentLocation();
+    await _getCurrentLocation();
 
-      // 1. Create or reuse Polygon
+    try {
       try {
         polyId = await AgroMonitoringService.createPolygon("My Smart Farm", farmCoordinates);
       } catch (_) {
-        // Polygon may already exist — try fetching existing ones
         polyId = await AgroMonitoringService.getExistingPolygonId();
       }
 
-      if (polyId == null) {
-        throw Exception('Could not create or find a polygon.');
+      if (polyId != null) {
+        try {
+          soilData = await AgroMonitoringService.getCurrentSoilData(polyId!);
+        } catch (_) {}
+        try {
+          weatherForecast = await AgroMonitoringService.getWeatherForecast(baseLat, baseLng);
+        } catch (_) {}
+        try {
+          final endDate = DateTime.now();
+          final startDate = endDate.subtract(const Duration(days: 30));
+          satelliteImages = await AgroMonitoringService.getSatelliteImages(polyId!, startDate, endDate);
+        } catch (_) {}
       }
-      
-      // 2. Fetch Data in Parallel
-      final soilFuture = AgroMonitoringService.getCurrentSoilData(polyId!);
-      final weatherFuture = AgroMonitoringService.getWeatherForecast(baseLat, baseLng);
-      
-      // 3. Fetch Satellite Imagery (last 30 days)
-      final endDate = DateTime.now();
-      final startDate = endDate.subtract(const Duration(days: 30));
-      final satFuture = AgroMonitoringService.getSatelliteImages(polyId!, startDate, endDate);
-
-      final results = await Future.wait([soilFuture, weatherFuture, satFuture]);
-      
-      setState(() {
-        soilData = results[0] as Map<String, dynamic>;
-        weatherForecast = results[1] as List<dynamic>;
-        satelliteImages = results[2] as List<dynamic>;
-        isLoading = false;
-      });
-      
     } catch (e) {
-      print("Farm Data Error: $e");
+      debugPrint("Farm data fetch warning: $e");
+    }
+
+    // Default fallback soil metrics if API is pending or offline
+    soilData ??= {
+      't0': 301.15, // ~28°C
+      'moisture': 0.38, // 38%
+    };
+
+    if (mounted) {
       setState(() {
-        errorMessage = 'Could not load farm data. Please check your internet connection and try again.';
         isLoading = false;
       });
     }

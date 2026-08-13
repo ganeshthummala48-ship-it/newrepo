@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // 🔗 API Base URLs
-  static const String _emulatorIP = '10.0.2.2';
+  static const String _wifiIP = '172.20.10.3';
   static const String renderUrl = 'https://newrepo-bhe1.onrender.com';
 
   static String get baseUrl {
     if (kReleaseMode) {
       return renderUrl;
     }
-    // Debug mode: detect platform for zero-latency local development
+    // Debug mode: connect physical mobile or emulator to local Wi-Fi IP
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://$_emulatorIP:8000';
+      return 'http://$_wifiIP:8000';
     }
     return 'http://127.0.0.1:8000';
   }
