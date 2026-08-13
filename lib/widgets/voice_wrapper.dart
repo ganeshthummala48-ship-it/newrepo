@@ -2,18 +2,21 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/voice_service.dart';
 import '../services/voice_command_service.dart';
+import '../services/ai_service.dart';
 import '../l10n/generated/app_localizations.dart';
 
 class VoiceWrapper extends StatefulWidget {
   final Widget child;
   final String? textToRead;
   final String? screenTitle;
+  final Future<bool> Function(String query, String langCode)? onVoiceQuery;
 
   const VoiceWrapper({
     super.key,
     required this.child,
     this.textToRead,
     this.screenTitle,
+    this.onVoiceQuery,
   });
 
   @override
@@ -188,37 +191,228 @@ class _VoiceWrapperState extends State<VoiceWrapper>
     setState(() => _showListeningOverlay = false);
 
     if (result.isNotEmpty) {
-      // Parse the command
+      // 1. Check if the active screen handles the query directly
+      if (widget.onVoiceQuery != null) {
+        final handledLocally = await widget.onVoiceQuery!(result, langCode);
+        if (handledLocally) {
+          if (_handsFreeMode) VoiceService.resumeWakeWord();
+          return;
+        }
+      }
+
+      // 2. Parse command for screen navigation
       final command = VoiceCommandService.parseCommand(result, langCode);
 
       if (command != null) {
-        // Speak the navigation feedback
-        final navMessage = VoiceCommandService.getNavigatingMessage(command.screenLabel, langCode);
-        await VoiceService.speak(navMessage, langCode);
+        if (command.isPop) {
+          final navMessage = VoiceCommandService.getGoingBackMessage(langCode);
+          await VoiceService.speak(navMessage, langCode);
+          await Future.delayed(const Duration(milliseconds: 600));
+          if (mounted && Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+          if (_handsFreeMode) VoiceService.resumeWakeWord();
+          return;
+        }
 
-        // Small delay for the user to hear feedback
-        await Future.delayed(const Duration(milliseconds: 800));
+        // Prevent self-redirect: check if user is ALREADY on this screen
+        bool isAlreadyOnScreen = false;
+        if (widget.screenTitle != null) {
+          final titleLower = widget.screenTitle!.toLowerCase();
+          final labelLower = command.screenLabel.toLowerCase();
+          if (titleLower == labelLower ||
+              titleLower.contains(labelLower) ||
+              labelLower.contains(titleLower)) {
+            isAlreadyOnScreen = true;
+          }
+        }
 
-        if (!mounted) return;
+        if (isAlreadyOnScreen) {
+          // User is ALREADY on this screen! Do NOT push a duplicate route!
+          final msg = VoiceCommandService.getAlreadyOnScreenMessage(command.screenLabel, langCode);
+          await VoiceService.speak(msg, langCode);
 
-        // Navigate
-        if (command.routeName != null) {
-          Navigator.pushNamed(context, command.routeName!);
-        } else if (command.screen != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => command.screen!),
-          );
+          // Read out current page text if available
+          if (widget.textToRead != null && widget.textToRead!.isNotEmpty) {
+            await Future.delayed(const Duration(milliseconds: 1200));
+            if (mounted) {
+              await VoiceService.speakInProfileLanguage(widget.textToRead!, context);
+            }
+          }
+        } else {
+          // Speak the navigation feedback
+          final navMessage = VoiceCommandService.getNavigatingMessage(command.screenLabel, langCode);
+          await VoiceService.speak(navMessage, langCode);
+
+          // Small delay for the user to hear feedback
+          await Future.delayed(const Duration(milliseconds: 800));
+
+          if (!mounted) return;
+
+          // Navigate
+          if (command.routeName != null) {
+            Navigator.pushNamed(context, command.routeName!);
+          } else if (command.screen != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => command.screen!),
+            );
+          }
         }
       } else {
-        // Didn't understand
-        final msg = VoiceCommandService.getNotUnderstoodMessage(langCode);
-        await VoiceService.speak(msg, langCode);
+        // 3. Spoken input is NOT a navigation command -> Treat as AI Query in profile language!
+        await _handleVoiceQueryWithAI(result, langCode);
       }
     }
 
     // Resume wake-word loop after command finished
     if (_handsFreeMode) VoiceService.resumeWakeWord();
+  }
+
+  /// Handles natural language voice questions by querying AIService in profile language
+  /// and reading out the response aloud with an interactive glassmorphic modal.
+  Future<void> _handleVoiceQueryWithAI(String question, String langCode) async {
+    final thinkingMsg = VoiceCommandService.getThinkingMessage(langCode);
+    await VoiceService.speak(thinkingMsg, langCode);
+
+    try {
+      final answer = await AIService.getAIResponse(question, language: langCode);
+      if (!mounted) return;
+
+      // Show interactive answer modal
+      _showAIAnswerModal(question, answer, langCode);
+
+      // Read out answer in profile language
+      await VoiceService.speak(answer, langCode);
+    } catch (e) {
+      if (!mounted) return;
+      final errorMsg = VoiceCommandService.getNotUnderstoodMessage(langCode);
+      await VoiceService.speak(errorMsg, langCode);
+    }
+  }
+
+  void _showAIAnswerModal(String question, String answer, String langCode) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.55,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border.all(color: Colors.emerald.withOpacity(0.4), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white30,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.emerald.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.record_voice_over_rounded, color: Colors.emeraldAccent, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          question,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                        onPressed: () {
+                          VoiceService.stop();
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                  const Divider(color: Colors.white12, height: 24),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      children: [
+                        Text(
+                          answer,
+                          style: const TextStyle(
+                            color: Colors.white90,
+                            fontSize: 15,
+                            height: 1.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.emerald,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => VoiceService.speak(answer, langCode),
+                        icon: const Icon(Icons.volume_up_rounded, color: Colors.white),
+                        label: const Text("Replay Voice", style: TextStyle(color: Colors.white)),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: Colors.white30),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          VoiceService.stop();
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.stop_rounded),
+                        label: const Text("Stop"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override

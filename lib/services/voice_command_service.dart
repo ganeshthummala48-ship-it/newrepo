@@ -300,6 +300,31 @@ class VoiceCommandService {
     final lower = text.toLowerCase().trim();
     if (lower.isEmpty) return null;
 
+    final words = lower.split(RegExp(r'\s+'));
+
+    // If the spoken phrase is long (> 4 words), check if it has explicit navigation intent.
+    // Long natural language sentences (e.g. "what scheme is available for cotton in telangana")
+    // should be treated as AI queries rather than screen navigation commands.
+    if (words.length > 4) {
+      final navPrefixes = [
+        'open', 'go to', 'show', 'navigate to', 'take me to',
+        'खोलें', 'जाएं', 'दिखाएं', 'खोलो',
+        'తెరువు', 'వెళ్ళు', 'చూపించు', 'వెళ్లు',
+        'திற', 'செல்', 'காட்டு',
+        'ತೆರೆ', 'ಹೋಗು', 'ತೋರಿಸು',
+        'খুলুন', 'যান', 'দেখান',
+        'उघडा', 'जा', 'दाखवा',
+        'ખોલો', 'જાવ', 'બતાવો',
+        'തുറക്കൂ', 'പോകൂ', 'കാണിക്കൂ',
+        'ਖੋਲ੍ਹੋ', 'ਜਾਓ', 'ਦਿਖਾਓ',
+        'ଖୋଲନ୍ତୁ', 'ଯାଆନ୍ତୁ', 'ଦେଖାନ୍ତୁ',
+      ];
+      bool hasExplicitNav = navPrefixes.any((p) => lower.startsWith(p));
+      if (!hasExplicitNav) {
+        return null; // Pass to AI Assistant query handler
+      }
+    }
+
     // Try exact multi-word matches first (longer keywords first)
     final sortedCommands = List<_CommandEntry>.from(_commands)
       ..sort((a, b) {
@@ -323,6 +348,43 @@ class VoiceCommandService {
     }
 
     return null;
+  }
+
+
+  /// Get an "already on screen" message in the profile language
+  static String getAlreadyOnScreenMessage(String screenLabel, String languageCode) {
+    final templates = {
+      'en': 'You are already on $screenLabel screen',
+      'hi': 'आप पहले से ही $screenLabel स्क्रीन पर हैं',
+      'te': 'మీరు ఇప్పటికే $screenLabel స్క్రైన్ లో ఉన్నారు',
+      'ta': 'நீங்கள் ஏற்கனவே $screenLabel திரையில் உள்ளீர்கள்',
+      'kn': 'ನೀವು ಈಗಾಗಲೇ $screenLabel ಸ್ಕ್ರೀನ್ ನಲ್ಲಿದ್ದೀರಿ',
+      'bn': 'আপনি ইতিমধ্যে $screenLabel স্ক্রিনে আছেন',
+      'mr': 'तुम्ही आधीच $screenLabel स्क्रीनवर आहात',
+      'gu': 'તમે પહેલેથી જ $screenLabel સ્ક્રીન પર છો',
+      'ml': 'നിങ്ങൾ ഇതിനകം $screenLabel സ്ക്രീനിലാണ്',
+      'pa': 'ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ $screenLabel ਸਕ੍ਰੀਨ ਤੇ ਹੋ',
+      'or': 'ଆପଣ ପୂର୍ବରୁ $screenLabel ସ୍କ୍ରିନରେ ଅଛନ୍ତି',
+    };
+    return templates[languageCode] ?? templates['en']!;
+  }
+
+  /// Get a "thinking/processing question" message in the profile language
+  static String getThinkingMessage(String languageCode) {
+    final templates = {
+      'en': 'Processing your question...',
+      'hi': 'आपके सवाल का जवाब खोज रहे हैं...',
+      'te': 'మీ ప్రశ్నకు సమాధానం వెతుకుతున్నాము...',
+      'ta': 'உங்கள் கேள்விக்கு பதில் தேடப்படுகிறது...',
+      'kn': 'ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಉತ್ತರ ಹುಡುಕುತ್ತಿದ್ದೇವೆ...',
+      'bn': 'আপনার প্রশ্নের উত্তর খোঁজা হচ্ছে...',
+      'mr': 'तुमच्या प्रश्नाचे उत्तर शोधत आहोत...',
+      'gu': 'તમારા પ્રશ્નનો જવાબ શોધી રહ્યા છીએ...',
+      'ml': 'നിങ്ങളുടെ ചോദ്യത്തിന് ഉത്തരം കണ്ടെത്തുന്നു...',
+      'pa': 'ਤੁਹਾਡੇ ਸਵਾਲ ਦਾ ਜਵਾਬ ਲੱਭ ਰਹੇ ਹਾਂ...',
+      'or': 'ଆପଣଙ୍କ ପ୍ରଶ୍ନର ଉତ୍ତର ଖୋଜାଯାଉଛି...',
+    };
+    return templates[languageCode] ?? templates['en']!;
   }
 
   /// Get a "navigating to" message in the profile language
