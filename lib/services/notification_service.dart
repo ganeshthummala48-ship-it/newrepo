@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -15,11 +16,36 @@ class NotificationService {
     _initialized = true;
   }
 
+  /// Persists notification into local Hive notificationsBox
+  static Future<void> saveNotification({
+    required String title,
+    required String body,
+    String type = 'community',
+  }) async {
+    try {
+      if (Hive.isBoxOpen('notificationsBox')) {
+        final box = Hive.box('notificationsBox');
+        final item = {
+          'id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'title': title,
+          'body': body,
+          'type': type,
+          'timestamp': DateTime.now().toIso8601String(),
+          'read': false,
+        };
+        await box.add(item);
+      }
+    } catch (e) {
+      debugPrint('Error saving notification to Hive: $e');
+    }
+  }
+
   static Future<void> showRiskAlert({
     required String title,
     required String body,
     int id = 1,
   }) async {
+    await saveNotification(title: title, body: body, type: 'risk');
     await init();
     const androidDetails = AndroidNotificationDetails(
       'risk_alerts',
@@ -65,6 +91,7 @@ class NotificationService {
     required String body,
     int id = 2,
   }) async {
+    await saveNotification(title: title, body: body, type: 'community');
     await init();
     const androidDetails = AndroidNotificationDetails(
       'community_alerts',
@@ -89,6 +116,7 @@ class NotificationService {
     required String body,
     required int id,
   }) async {
+    await saveNotification(title: title, body: body, type: 'contract');
     await init();
     const androidDetails = AndroidNotificationDetails(
       'contract_updates',
@@ -119,6 +147,7 @@ class NotificationService {
     required String body,
     required int id,
   }) async {
+    await saveNotification(title: title, body: body, type: 'listing');
     await init();
     const androidDetails = AndroidNotificationDetails(
       'new_listings',

@@ -2013,6 +2013,22 @@ async def websocket_community(websocket: WebSocket, client_id: str, db: Session 
         manager.disconnect(websocket)
 
 
+@app.get("/community/posts")
+def get_community_posts(db: Session = Depends(get_db)):
+    """REST endpoint fallback to fetch community posts in real time"""
+    posts = db.query(CommunityPost).order_by(CommunityPost.timestamp.desc()).limit(50).all()
+    post_data = []
+    for p in posts:
+        comments = [{"id": c.id, "author": c.author, "content": c.content, "timestamp": c.timestamp.isoformat()} for c in p.comments]
+        post_data.append({
+            "id": p.id, "author": p.author, "location": p.location,
+            "content": p.content, "avatar": p.avatar, "likes": p.likes or [],
+            "timestamp": p.timestamp.isoformat(), "comments": comments
+        })
+    return {"posts": post_data}
+
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))

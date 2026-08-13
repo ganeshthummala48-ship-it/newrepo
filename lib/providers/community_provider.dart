@@ -90,6 +90,12 @@ class CommunityProvider with ChangeNotifier {
         final newComments = List<CommunityComment>.from(post.comments)..add(comment);
         _posts[postIndex] = post.copyWith(comments: newComments);
         
+        NotificationService.showCommunityNotification(
+          id: comment.id.hashCode,
+          title: 'New Community Comment',
+          body: '${comment.author}: ${comment.content}',
+        );
+
         if (_currentLang != null) {
           _translateComment(postIndex, newComments.length - 1, _currentLang!);
         } else {

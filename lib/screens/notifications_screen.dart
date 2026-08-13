@@ -9,49 +9,45 @@ class NotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Assuming the user phone or ID is stored in profileBox
-    final box = Hive.box('profileBox');
-    final String userPhone = box.get('phone', defaultValue: 'guest');
+    final Box? notifBox = Hive.isBoxOpen('notificationsBox')
+        ? Hive.box('notificationsBox')
+        : null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const Text('Notifications & Alerts'),
+        actions: [
+          if (notifBox != null && notifBox.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded),
+              tooltip: 'Clear Notifications',
+              onPressed: () => notifBox.clear(),
+            ),
+        ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        // Listen directly to Firestore where notifications for this user are stored
-        stream: FirebaseFirestore.instance
-            .collection('notifications_$userPhone')
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: notifBox == null
+          ? const Center(child: CircularProgressIndicator())
+          : ValueListenableBuilder(
+              valueListenable: notifBox.listenable(),
+              builder: (context, Box box, _) {
+                final items = box.values.toList().reversed.toList();
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Error loading notifications.',
-                  style: TextStyle(color: Colors.red.shade800)),
-            );
-          }
+                if (items.isEmpty) {
+                  return _buildEmptyState();
+                }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          final docs = snapshot.data!.docs;
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              return _buildNotificationCard(data);
-            },
-          );
-        },
-      ),
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final raw = items[index];
+                    final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+                    return _buildNotificationCard(data);
+                  },
+                );
+              },
+            ),
     );
   }
 
@@ -60,7 +56,7 @@ class NotificationsScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+          Icon(Icons.notifications_none_rounded, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             'No notifications yet',
@@ -72,7 +68,8 @@ class NotificationsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'We will notify you about updates.',
+            'Community posts, comments & contract updates will appear here in real time.',
+            textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade500),
           ),
         ],
@@ -83,11 +80,29 @@ class NotificationsScreen extends StatelessWidget {
   Widget _buildNotificationCard(Map<String, dynamic> data) {
     final title = data['title'] ?? 'Notice';
     final body = data['body'] ?? '';
-    final timestamp = data['timestamp'] as Timestamp?;
+    final type = data['type'] ?? 'community';
+    final rawTs = data['timestamp'];
 
-    String timeString = '';
-    if (timestamp != null) {
-      timeString = DateFormat('MMM d, hh:mm a').format(timestamp.toDate());
+    String timeString = 'Just now';
+    if (rawTs != null) {
+      try {
+        final dt = DateTime.parse(rawTs.toString());
+        timeString = DateFormat('MMM d, hh:mm a').format(dt);
+      } catch (_) {}
+    }
+
+    IconData icon = Icons.notifications_active_rounded;
+    Color iconColor = AppConstants.primaryColor;
+
+    if (type == 'community') {
+      icon = Icons.forum_rounded;
+      iconColor = Colors.teal;
+    } else if (type == 'contract') {
+      icon = Icons.assignment_turned_in_rounded;
+      iconColor = Colors.orange.shade700;
+    } else if (type == 'risk') {
+      icon = Icons.warning_amber_rounded;
+      iconColor = Colors.red.shade700;
     }
 
     return Container(
@@ -96,35 +111,34 @@ class NotificationsScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withValues(alpha: 0.08),
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           )
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         leading: CircleAvatar(
-          backgroundColor: AppConstants.primaryColor.withValues(alpha: 0.1),
-          child: const Icon(Icons.notifications_active,
-              color: AppConstants.primaryColor),
+          backgroundColor: iconColor.withValues(alpha: 0.12),
+          child: Icon(icon, color: iconColor),
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               body,
-              style: TextStyle(color: Colors.grey.shade700),
+              style: TextStyle(color: Colors.grey.shade800, fontSize: 13.5),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               timeString,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
             ),
           ],
         ),
