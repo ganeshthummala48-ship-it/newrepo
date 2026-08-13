@@ -1,8 +1,14 @@
+import sys
+import io
 import json
 import os
-os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import io
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
 import joblib
 from PIL import Image
 import keras

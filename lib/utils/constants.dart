@@ -1,12 +1,17 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
   // 🔗 API Base URLs
+  static const String _localIP = '10.86.142.73';
   static const String _renderUrl = 'https://newrepo-bhe1.onrender.com';
 
   static String get baseUrl {
-    // Connect directly to live production backend on Render
-    return _renderUrl;
+    if (kReleaseMode) {
+      return _renderUrl;
+    }
+    // Debug mode: default to local server on port 8000
+    return 'http://$_localIP:8000';
   }
 
   // 🔑 API Keys
