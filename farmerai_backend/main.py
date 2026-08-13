@@ -1124,7 +1124,17 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.name == user.name).first()
     if not db_user or db_user.password != user.password:
         return {"error": "Invalid credentials"}
-    return {"status": "success", "role": db_user.role, "lang": db_user.language, "phone": db_user.phone or ""}
+    return {
+        "status": "success", 
+        "role": db_user.role, 
+        "lang": db_user.language, 
+        "phone": db_user.phone or "",
+        "address": getattr(db_user, "address", "") or "",
+        "pincode": getattr(db_user, "pincode", "") or "",
+        "lat": getattr(db_user, "lat", 0.0) or 0.0,
+        "lng": getattr(db_user, "lng", 0.0) or 0.0
+    }
+
 
 @app.get("/listings")
 async def get_listings(type: str = None, lang: str = "en", db: Session = Depends(get_db)):
