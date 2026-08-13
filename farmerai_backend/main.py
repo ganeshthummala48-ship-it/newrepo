@@ -59,7 +59,8 @@ LANG_NAMES = {
 }
 
 
-COHERE_SPECIALIZED_API_KEY = os.getenv("COHERE_SPECIALIZED_API_KEY", "cohere_99HIkhvkxtypfasVfHfTmHyA3us3fl8pNF64vIdJ2LbsU3")
+# Use the same real Cohere key for specialized calls (falls back to the .env key)
+COHERE_SPECIALIZED_API_KEY = os.getenv("COHERE_SPECIALIZED_API_KEY") or os.getenv("COHERE_API_KEY")
 
 async def call_cohere(prompt: str, model: str = "command-a-03-2025", lang: str = "en", api_key: str = None):
     target_key = api_key or os.getenv("COHERE_API_KEY")
@@ -512,6 +513,19 @@ async def startup_event():
     print("🌾 Pre-loading crop recommendation models...")
     get_crop_recommendation_models()
 
+    # 4. Pre-load Fruits-360 and DeepWeeds models (prevents OOM 503 on first request)
+    print("🍎 Pre-loading Fruits-360 model...")
+    try:
+        _load_fruits_model()
+    except Exception as e:
+        print(f"⚠️ Fruits-360 model pre-load failed (will retry on first request): {e}")
+
+    print("🌿 Pre-loading DeepWeeds model...")
+    try:
+        _load_deepweeds_model()
+    except Exception as e:
+        print(f"⚠️ DeepWeeds model pre-load failed (will retry on first request): {e}")
+
 
 def get_specialized_model(crop_name: str):
     """
@@ -840,17 +854,67 @@ FRUITS_LABELS_PATH = os.path.join(BASE_DIR, "model", "fruits360_labels.json")
 DEEPWEEDS_MODEL_PATH = os.path.join(BASE_DIR, "model", "deepweeds_model.h5")
 DEEPWEEDS_LABELS_PATH = os.path.join(BASE_DIR, "model", "deepweeds_labels.json")
 
+# ── Global model cache — loaded ONCE at startup, never per-request ──────────
+_fruits_model = None
+_deepweeds_model = None
+_fruits_labels: dict = {}
+_deepweeds_labels: dict = {}
+
+WEED_SPECIES_MAP = {
+    "0": "Chinee Apple", "1": "Lantana", "2": "Parkinsonia",
+    "3": "Parthenium", "4": "Prickly Acacia", "5": "Rubber Vine",
+    "6": "Siam Weed", "7": "Snake Weed", "8": "Negative / No Weed"
+}
+
+
+def _load_fruits_model():
+    """Load (or return cached) Fruits-360 model. Raises on failure."""
+    global _fruits_model, _fruits_labels
+    if _fruits_model is None:
+        if not os.path.exists(FRUITS_MODEL_PATH):
+            raise FileNotFoundError(f"Fruits model not found: {FRUITS_MODEL_PATH}")
+        import numpy as np
+        _fruits_model = keras.models.load_model(FRUITS_MODEL_PATH, compile=False)
+        # warm-up
+        _fruits_model.predict(np.zeros((1, 100, 100, 3)), verbose=0)
+        print("✅ Fruits-360 model loaded and warmed up")
+        if os.path.exists(FRUITS_LABELS_PATH):
+            with open(FRUITS_LABELS_PATH, "r", encoding="utf-8") as f:
+                _fruits_labels = json.load(f)
+    return _fruits_model, _fruits_labels
+
+
+def _load_deepweeds_model():
+    """Load (or return cached) DeepWeeds model. Raises on failure."""
+    global _deepweeds_model, _deepweeds_labels
+    if _deepweeds_model is None:
+        if not os.path.exists(DEEPWEEDS_MODEL_PATH):
+            raise FileNotFoundError(f"DeepWeeds model not found: {DEEPWEEDS_MODEL_PATH}")
+        import numpy as np
+        _deepweeds_model = keras.models.load_model(DEEPWEEDS_MODEL_PATH, compile=False)
+        # warm-up
+        _deepweeds_model.predict(np.zeros((1, 224, 224, 3)), verbose=0)
+        print("✅ DeepWeeds model loaded and warmed up")
+        if os.path.exists(DEEPWEEDS_LABELS_PATH):
+            with open(DEEPWEEDS_LABELS_PATH, "r", encoding="utf-8") as f:
+                _deepweeds_labels = json.load(f)
+    return _deepweeds_model, _deepweeds_labels
+
 @app.post("/classify-fruit")
 async def classify_fruit(file: UploadFile = File(...), lang: str = Form("en")):
     """
     Classifies fruits & vegetables using the Fruits-360 ResNet50 model.
-    OOM-Safe: Uses lazy loading and immediate garbage collection.
+    Uses a globally cached model loaded once at startup to avoid OOM/503 errors.
     """
     import numpy as np
-    import gc
-    
-    if not os.path.exists(FRUITS_MODEL_PATH):
-        return {"error": "Fruits classification model file not found on server."}
+
+    # Use cached model — never reload per-request (causes OOM on free-tier servers)
+    try:
+        fruit_model, fruits_labels = _load_fruits_model()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Fruits model unavailable: {str(e)}")
 
     image_bytes = await file.read()
     try:
@@ -864,22 +928,13 @@ async def classify_fruit(file: UploadFile = File(...), lang: str = Form("en")):
     image_batch = np.expand_dims(image_array, axis=0)
 
     try:
-        fruit_model = keras.models.load_model(FRUITS_MODEL_PATH, compile=False)
         predictions = fruit_model.predict(image_batch, verbose=0)
         predicted_idx = int(np.argmax(predictions))
         confidence = float(np.max(predictions)) * 100
 
-        fruits_labels = {}
-        if os.path.exists(FRUITS_LABELS_PATH):
-            with open(FRUITS_LABELS_PATH, "r") as f:
-                fruits_labels = json.load(f)
-
         fruit_name = fruits_labels.get(str(predicted_idx), f"Fruit Class {predicted_idx}")
 
-        del fruit_model
-        gc.collect()
-        keras.backend.clear_session()
-
+        # Use real Cohere API key (COHERE_SPECIALIZED_API_KEY resolves to .env key)
         prompt = f"Provide a short 2-sentence nutritional overview of {fruit_name}. Respond strictly in {LANG_NAMES.get(lang, 'English')}."
         ai_info = await call_cohere(prompt, lang=lang, api_key=COHERE_SPECIALIZED_API_KEY)
 
@@ -889,7 +944,6 @@ async def classify_fruit(file: UploadFile = File(...), lang: str = Form("en")):
             "ai_info": ai_info if ai_info else f"Identified as {fruit_name}."
         }
     except Exception as e:
-        gc.collect()
         return {"error": f"Fruit classification failed: {str(e)}"}
 
 
@@ -897,13 +951,17 @@ async def classify_fruit(file: UploadFile = File(...), lang: str = Form("en")):
 async def detect_weed(file: UploadFile = File(...), lang: str = Form("en")):
     """
     Detects weed species using the DeepWeeds MobileNetV2 model.
-    OOM-Safe: Uses lazy loading and immediate memory release.
+    Uses a globally cached model loaded once at startup to avoid OOM/503 errors.
     """
     import numpy as np
-    import gc
 
-    if not os.path.exists(DEEPWEEDS_MODEL_PATH):
-        return {"error": "DeepWeeds model file not found on server."}
+    # Use cached model — never reload per-request (causes OOM on free-tier servers)
+    try:
+        weed_model, weed_labels = _load_deepweeds_model()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"DeepWeeds model unavailable: {str(e)}")
 
     image_bytes = await file.read()
     try:
@@ -917,28 +975,16 @@ async def detect_weed(file: UploadFile = File(...), lang: str = Form("en")):
     image_batch = np.expand_dims(image_array, axis=0)
 
     try:
-        weed_model = keras.models.load_model(DEEPWEEDS_MODEL_PATH, compile=False)
         predictions = weed_model.predict(image_batch, verbose=0)
         predicted_idx = int(np.argmax(predictions))
         confidence = float(np.max(predictions)) * 100
 
-        weed_labels = {}
-        if os.path.exists(DEEPWEEDS_LABELS_PATH):
-            with open(DEEPWEEDS_LABELS_PATH, "r") as f:
-                weed_labels = json.load(f)
-
-        weed_species_map = {
-            "0": "Chinee Apple", "1": "Lantana", "2": "Parkinsonia",
-            "3": "Parthenium", "4": "Prickly Acacia", "5": "Rubber Vine",
-            "6": "Siam Weed", "7": "Snake Weed", "8": "Negative / No Weed"
-        }
+        # deepweeds_labels.json maps index -> numeric string ("0"->"0", etc.)
+        # WEED_SPECIES_MAP maps that numeric string -> human-readable species name
         raw_label = weed_labels.get(str(predicted_idx), str(predicted_idx))
-        weed_name = weed_species_map.get(raw_label, f"Weed Species {raw_label}")
+        weed_name = WEED_SPECIES_MAP.get(raw_label, f"Weed Species {raw_label}")
 
-        del weed_model
-        gc.collect()
-        keras.backend.clear_session()
-
+        # Use real Cohere API key (COHERE_SPECIALIZED_API_KEY resolves to .env key)
         prompt = f"Provide 2-sentence control advice for {weed_name} weed in farmland. Respond strictly in {LANG_NAMES.get(lang, 'English')}."
         control_advice = await call_cohere(prompt, lang=lang, api_key=COHERE_SPECIALIZED_API_KEY)
 
@@ -948,7 +994,6 @@ async def detect_weed(file: UploadFile = File(...), lang: str = Form("en")):
             "control_advice": control_advice if control_advice else f"Recommended weeding control for {weed_name}."
         }
     except Exception as e:
-        gc.collect()
         return {"error": f"Weed detection failed: {str(e)}"}
 
 

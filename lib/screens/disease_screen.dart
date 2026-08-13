@@ -92,50 +92,71 @@ class _DiseaseScreenState extends State<DiseaseScreen>
     } catch (e) {
       if (!mounted) return;
       debugPrint("API ERROR: $e");
-      String errorMessage =
-          'Failed to connect to server. Please check your network connection.';
-      if (e is SocketException) {
-        errorMessage = 'Network Timeout: Could not connect to AI backend.';
+      String errorMessage;
+      final errStr = e.toString().toLowerCase();
+      if (e is SocketException || errStr.contains('socket')) {
+        errorMessage = 'Network error: Could not reach AI server. Check your internet connection.';
+      } else if (errStr.contains('timeout') || errStr.contains('timed out')) {
+        errorMessage = 'Server is warming up (Render cold start). Please wait 30s and try again.';
       } else if (e is FormatException) {
-        errorMessage = 'Invalid response format received from server.';
+        errorMessage = 'Invalid response from server. Please try again.';
+      } else {
+        errorMessage = 'Error: ${e.toString().replaceFirst('Exception: ', '')}';
       }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(errorMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          duration: const Duration(seconds: 6),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
     } finally {
       if (mounted) setState(() => loading = false);
     }
   }
 
   // 🛡️ Network Helper with Automatic Failover
-  Future<http.StreamedResponse> _sendWithFallback(http.MultipartRequest request) async {
+  // NOTE: imagePath must be provided so the fallback can re-read the file fresh.
+  // MultipartFile streams are consumed after the first send() and cannot be reused.
+  Future<http.StreamedResponse> _sendWithFallback(
+    http.MultipartRequest request,
+    String imagePath,
+  ) async {
+    // Build a factory function to create fresh MultipartFile from disk each time
+    Future<http.MultipartFile> freshFile() =>
+        http.MultipartFile.fromPath('file', imagePath);
+
+    // Attempt 1: primary URL (local or release baseUrl)
     try {
-      return await request.send().timeout(const Duration(seconds: 12));
+      return await request.send().timeout(const Duration(seconds: 20));
     } catch (e) {
       debugPrint("Primary connection failed ($e). Retrying with Render production backend...");
-      final currentUrl = request.url.toString();
-      final renderUrl = currentUrl.contains(AppConstants.renderUrl)
-          ? currentUrl
-          : currentUrl.replaceFirst(AppConstants.baseUrl, AppConstants.renderUrl);
-      final fallbackRequest = http.MultipartRequest('POST', Uri.parse(renderUrl));
-      fallbackRequest.headers.addAll(request.headers);
-      fallbackRequest.fields.addAll(request.fields);
-      for (var file in request.files) {
-        fallbackRequest.files.add(file);
-      }
-      return await fallbackRequest.send().timeout(const Duration(seconds: 60));
     }
+
+    // Attempt 2: Render production fallback
+    final currentUrl = request.url.toString();
+    final renderUrl = currentUrl.contains(AppConstants.renderUrl)
+        ? currentUrl
+        : currentUrl.replaceFirst(AppConstants.baseUrl, AppConstants.renderUrl);
+    final fallbackRequest = http.MultipartRequest('POST', Uri.parse(renderUrl));
+    fallbackRequest.headers.addAll(request.headers);
+    fallbackRequest.fields.addAll(request.fields);
+    // Re-read the image file fresh — streams from the first request are consumed
+    fallbackRequest.files.add(await freshFile());
+    return await fallbackRequest.send().timeout(const Duration(seconds: 90));
   }
 
   // 🍃 Mode 0: Disease Detection
   Future<void> _analyzeDisease(String lang) async {
+    final imagePath = imageFile!.path;
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-disease');
     final request = http.MultipartRequest('POST', uri);
     request.headers['User-Agent'] =
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
-    request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
+    request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
-    final streamedResponse = await _sendWithFallback(request);
+    final streamedResponse = await _sendWithFallback(request, imagePath);
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
@@ -177,14 +198,15 @@ class _DiseaseScreenState extends State<DiseaseScreen>
 
   // 🍎 Mode 1: Fruit Ripeness & Classification
   Future<void> _analyzeFruit(String lang) async {
+    final imagePath = imageFile!.path;
     final uri = Uri.parse('${AppConstants.baseUrl}/classify-fruit');
     final request = http.MultipartRequest('POST', uri);
     request.headers['User-Agent'] =
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
-    request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
+    request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
-    final streamedResponse = await _sendWithFallback(request);
+    final streamedResponse = await _sendWithFallback(request, imagePath);
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
@@ -198,7 +220,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
 
       final box = Hive.box('historyBox');
       box.add({
-        'imagePath': imageFile!.path,
+        'imagePath': imagePath,
         'disease': 'Fruit: $fruitName',
         'confidence': confidence,
         'date': DateTime.now().toString(),
@@ -208,20 +230,21 @@ class _DiseaseScreenState extends State<DiseaseScreen>
       if (!mounted) return;
       _showFruitResultSheet(fruitName, confidence, aiInfo);
     } else {
-      throw Exception("Server status ${streamedResponse.statusCode}");
+      throw Exception("Server error ${streamedResponse.statusCode}: ${body.length > 200 ? body.substring(0, 200) : body}");
     }
   }
 
   // 🌿 Mode 2: Deep Weed Species Detection
   Future<void> _analyzeWeed(String lang) async {
+    final imagePath = imageFile!.path;
     final uri = Uri.parse('${AppConstants.baseUrl}/detect-weed');
     final request = http.MultipartRequest('POST', uri);
     request.headers['User-Agent'] =
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.fields['lang'] = lang;
-    request.files.add(await http.MultipartFile.fromPath('file', imageFile!.path));
+    request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
-    final streamedResponse = await _sendWithFallback(request);
+    final streamedResponse = await _sendWithFallback(request, imagePath);
     final body = await streamedResponse.stream.bytesToString();
 
     if (streamedResponse.statusCode == 200) {
@@ -235,7 +258,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
 
       final box = Hive.box('historyBox');
       box.add({
-        'imagePath': imageFile!.path,
+        'imagePath': imagePath,
         'disease': 'Weed: $weedName',
         'confidence': confidence,
         'date': DateTime.now().toString(),
@@ -245,7 +268,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
       if (!mounted) return;
       _showWeedResultSheet(weedName, confidence, controlAdvice);
     } else {
-      throw Exception("Server status ${streamedResponse.statusCode}");
+      throw Exception("Server error ${streamedResponse.statusCode}: ${body.length > 200 ? body.substring(0, 200) : body}");
     }
   }
 
