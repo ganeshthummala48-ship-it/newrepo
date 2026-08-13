@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
@@ -5,12 +6,17 @@ class AppConstants {
   // Use http://10.0.2.2:8000 for Android Emulator connecting to localhost
   // Use http://127.0.0.1:8000 for iOS Simulator
   // Use actual IP for Physical Devices
-  // 🌐 Production URL – backend deployed on Render (works without laptop)
-  // To switch back to local dev: replace with 'http://192.168.1.11:8000'
-  static const String _localUrl = 'http://10.77.172.73:8000'; // Updated machine IP
+  static const String _localIP = '10.86.142.73'; // Your machine IP
   static const String _renderUrl = 'https://newrepo-bhe1.onrender.com';
 
-  static String get baseUrl => _renderUrl; // Switch to _renderUrl for production or update _localUrl with your machine IP
+  static String get baseUrl {
+    if (kReleaseMode) {
+      return _renderUrl;
+    }
+    // In debug mode, we prefer local IP but allow for emulator fallback if needed
+    // Note: If you are on an Android Emulator, 10.0.2.2 is usually better than the machine IP
+    return 'http://$_localIP:8000'; 
+  }
 
   // 🔑 API Keys
   static const String googleMapsApiKey = 'AIzaSyASnZckQ6FaWSl8L6HibN6J9EjfPq86QEM';

@@ -16,10 +16,10 @@ def download_model_if_missing():
     Required: The Kaggle API token (kaggle.json) must be properly configured on the host machine.
     """
     if os.path.exists(MODEL_FILE):
-        print(f"✅ Model file already exists at {MODEL_FILE}")
+        print(f"Model file already exists at {MODEL_FILE}")
         return
 
-    print("⚠️ Plant disease model not found. Attempting to download from Kaggle...")
+    print("Plant disease model not found. Attempting to download from Kaggle...")
     
     # Ensure credentials are set from environment variables (Secrets in Render/GitHub)
     os.environ["KAGGLE_USERNAME"] = os.getenv("KAGGLE_USERNAME", "gnshthmmla")
@@ -32,13 +32,13 @@ def download_model_if_missing():
         # Check if kaggle is installed
         subprocess.run(["kaggle", "--version"], check=True, capture_output=True)
     except FileNotFoundError:
-        print("❌ Error: 'kaggle' python package is not installed. Run 'pip install kaggle'.")
+        print("Error: 'kaggle' python package is not installed. Run 'pip install kaggle'.")
         return
     except subprocess.CalledProcessError:
-         print("❌ Error: 'kaggle' is installed but failed to run. Check your python path or installation.")
+         print("Error: 'kaggle' is installed but failed to run. Check your python path or installation.")
          return
          
-    print(f"⬇️ Running 'kaggle kernels output {KAGGLE_KERNEL} -p {MODEL_DIR}'...")
+    print(f"Running 'kaggle kernels output {KAGGLE_KERNEL} -p {MODEL_DIR}'...")
     
     max_retries = 3
     for attempt in range(max_retries):
@@ -51,18 +51,18 @@ def download_model_if_missing():
             )
             
             if result.returncode == 0:
-                print(f"✅ Download completed successfully!")
+                print(f"Download completed successfully!")
                 break
             else:
-                print(f"⚠️ Attempt {attempt+1} failed ({result.returncode})")
+                print(f"Attempt {attempt+1} failed ({result.returncode})")
                 if attempt == max_retries - 1:
-                    print("❌ All download attempts failed.")
+                    print("All download attempts failed.")
                     print("Error:", result.stderr)
                     return
                 time.sleep(5) # Wait before retry
 
         except Exception as e:
-            print(f"❌ An error occurred: {e}")
+            print(f"An error occurred: {e}")
             return
 
     # Post-download check and rename
@@ -71,9 +71,9 @@ def download_model_if_missing():
     if not os.path.exists(MODEL_FILE) and h5_files:
          old_path = os.path.join(MODEL_DIR, h5_files[0])
          os.rename(old_path, MODEL_FILE)
-         print(f"🔄 Renamed {h5_files[0]} to plant_disease_model.h5")
+         print(f"Renamed {h5_files[0]} to plant_disease_model.h5")
     elif os.path.exists(MODEL_FILE):
-         print("✅ Confirmed: plant_disease_model.h5 is ready.")
+         print("Confirmed: plant_disease_model.h5 is ready.")
 
 if __name__ == "__main__":
     download_model_if_missing()

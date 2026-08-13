@@ -235,6 +235,9 @@ class VoiceService {
     Duration maxListenDuration = const Duration(seconds: 30),
     Duration silenceGap = const Duration(milliseconds: 2500),
   }) async {
+    // 🛑 Ensure we stop speaking before we start listening
+    await stop();
+    
     final completer = Completer<String>();
 
     bool available = await _speech.initialize(

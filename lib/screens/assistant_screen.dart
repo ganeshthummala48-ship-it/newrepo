@@ -84,23 +84,34 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   Future<void> _listen() async {
     final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    if (!isListening) {
-      setState(() => isListening = true);
-      final result = await VoiceService.listenForCommand(
-        localeProvider.locale.languageCode,
-        onPartialResult: (val) => setState(() {
-          _controller.text = val;
-        }),
-      );
-      if (mounted) {
-        setState(() {
-          isListening = false;
-          if (result.isNotEmpty) _controller.text = result;
-        });
-      }
-    } else {
+    
+    // If we're already listening, stop it
+    if (isListening || VoiceService.state == VoiceState.listening) {
       setState(() => isListening = false);
       await VoiceService.stopListening();
+      return;
+    }
+
+    // Stop anything before starting new listen session
+    await VoiceService.stop();
+    if (!mounted) return;
+
+    setState(() => isListening = true);
+    
+    final result = await VoiceService.listenForCommand(
+      localeProvider.locale.languageCode,
+      onPartialResult: (val) {
+        if (mounted) setState(() => _controller.text = val);
+      },
+    );
+
+    if (mounted) {
+      setState(() => isListening = false);
+      if (result.isNotEmpty) {
+        _controller.text = result;
+        // Optional: auto-send after voice recognition?
+        // sendMessage(); 
+      }
     }
   }
 

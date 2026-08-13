@@ -24,16 +24,46 @@ class _MarketScreenState extends State<MarketScreen> {
   List<String> districts = [];
 
   final List<String> states = [
-    'Telangana',
+    'Andaman and Nicobar Islands',
     'Andhra Pradesh',
-    'Maharashtra',
+    'Arunachal Pradesh',
+    'Assam',
+    'Bihar',
+    'Chandigarh',
+    'Chhattisgarh',
+    'Dadra and Nagar Haveli',
+    'Daman and Diu',
+    'Goa',
+    'Gujarat',
+    'Haryana',
+    'Himachal Pradesh',
+    'Jammu and Kashmir',
+    'Jharkhand',
     'Karnataka',
-    'Tamil Nadu',
+    'Kerala',
+    'Ladakh',
+    'Lakshadweep',
+    'Madhya Pradesh',
+    'Maharashtra',
+    'Manipur',
+    'Meghalaya',
+    'Mizoram',
+    'Nagaland',
+    'NCT of Delhi',
+    'Odisha',
+    'Puducherry',
     'Punjab',
+    'Rajasthan',
+    'Sikkim',
+    'Tamil Nadu',
+    'Telangana',
+    'Tripura',
     'Uttar Pradesh',
+    'Uttarakhand',
+    'West Bengal',
   ];
 
-  final List<String> commodities = [
+  List<String> commodities = [
     'Cotton',
     'Maize',
     'Groundnut',
@@ -53,8 +83,26 @@ class _MarketScreenState extends State<MarketScreen> {
     selectedDistrict = 'All Districts';
     
     loadDistricts(selectedState).then((_) {
+      loadCommodities();
       loadData();
     });
+  }
+
+  Future<void> loadCommodities() async {
+    try {
+      final list = await ApiService.fetchCommodities();
+      if (list.isNotEmpty && mounted) {
+        setState(() {
+          commodities = list;
+          // Ensure selectedCommodity is in the new list, or default to first
+          if (!commodities.contains(selectedCommodity)) {
+            selectedCommodity = commodities.first;
+          }
+        });
+      }
+    } catch (e) {
+      print('MarketScreen: Error loading commodities: $e');
+    }
   }
 
   Future<void> loadDistricts(String state) async {

@@ -139,4 +139,21 @@ class ApiService {
       throw Exception('Network error while fetching weather: $e');
     }
   }
+
+  // 🌾 COMMODITIES API
+  static Future<List<String>> fetchCommodities() async {
+    try {
+      final url = Uri.parse('${AppConstants.baseUrl}/commodities');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<String>.from(data['commodities'] ?? []);
+      } else {
+        throw Exception('Failed to load commodities');
+      }
+    } catch (e) {
+      throw Exception('Network error while fetching commodities: $e');
+    }
+  }
 }
