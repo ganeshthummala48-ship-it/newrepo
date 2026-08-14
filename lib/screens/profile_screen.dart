@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/constants.dart';
+import '../utils/app_translations.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../providers/locale_provider.dart';
@@ -115,12 +116,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showLogoutDialog() {
+    final langCode = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to logout? your profile data will be kept but you will need to re-verify.'),
+        title: Text(AppTranslations.get('logout_confirm_title', langCode), style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(AppTranslations.get('logout_confirm_body', langCode)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -131,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.pop(context);
               _logout();
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: Text(AppTranslations.get('logout_confirm_title', langCode), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -312,9 +314,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _showLogoutDialog,
                       icon: const Icon(Icons.logout_rounded, color: Colors.red),
-                      label: const Text(
-                        'Logout from App',
-                        style: TextStyle(
+                      label: Text(
+                        AppTranslations.get('logout_from_app', localeProvider.locale.languageCode),
+                        style: const TextStyle(
                           color: Colors.red,
                           fontWeight: FontWeight.bold,
                           fontSize: 15,

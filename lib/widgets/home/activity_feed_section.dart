@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
+import '../../utils/app_translations.dart';
+import '../../providers/locale_provider.dart';
 
 class ActivityFeedSection extends StatelessWidget {
   final String title;
@@ -13,6 +16,8 @@ class ActivityFeedSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final langCode = Provider.of<LocaleProvider>(context).locale.languageCode;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -39,7 +44,7 @@ class ActivityFeedSection extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
-                    'See All',
+                    AppTranslations.get('see_all', langCode),
                     style: TextStyle(
                       color: AppConstants.primaryColor,
                       fontWeight: FontWeight.w600,
@@ -58,22 +63,22 @@ class ActivityFeedSection extends StatelessWidget {
             children: [
               _buildFeedItem(
                 context,
-                title: 'New Subsidy for Drip Irrigation',
-                subtitle: 'Govt. Scheme • 2h ago',
+                title: AppTranslations.get('subsidy_drip_title', langCode),
+                subtitle: AppTranslations.get('subsidy_drip_subtitle', langCode),
                 icon: Icons.water_drop_rounded,
                 color: Colors.blue,
               ),
               _buildFeedItem(
                 context,
-                title: 'Tomato Prices Up by 12%',
-                subtitle: 'Market Update • 5h ago',
+                title: AppTranslations.get('tomato_price_title', langCode),
+                subtitle: AppTranslations.get('tomato_price_subtitle', langCode),
                 icon: Icons.trending_up_rounded,
                 color: Colors.green,
               ),
               _buildFeedItem(
                 context,
-                title: 'Heavy Rain Alert in your area',
-                subtitle: 'Weather Warning • 1d ago',
+                title: AppTranslations.get('heavy_rain_title', langCode),
+                subtitle: AppTranslations.get('heavy_rain_subtitle', langCode),
                 icon: Icons.thunderstorm_rounded,
                 color: Colors.orange,
               ),

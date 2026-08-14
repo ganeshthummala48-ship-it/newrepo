@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../widgets/home_card.dart';
 import '../utils/constants.dart';
+import '../utils/app_translations.dart';
 import 'market_screen.dart';
 import 'crop_health_screen.dart';
 import 'booking_screen.dart';
@@ -182,11 +183,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(height: 24),
                               // Weather overview glassmorphism card
                               WeatherHeroCard(
-                                location: 'Local Farm',
+                                location: AppTranslations.get('local_farm', l10n.localeName),
                                 temperature: '32°C',
-                                description: 'Sunny, optimal for harvesting.',
+                                description: AppTranslations.get('sunny_harvest', l10n.localeName),
                                 icon: Icons.wb_sunny_rounded,
-                                onTap: () {}, // Can link to weather details later
+                                onTap: () {},
                               ),
                             ],
                           ),
@@ -204,17 +205,20 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 16),
-                  const LiveStatsTicker(
+                  LiveStatsTicker(
                     items: [
-                      'Market: Tomato prices increased by ₹5/kg today.',
-                      'Weather Alert: Clear skies expected for the next 48 hours.',
-                      'New government subsidy for drip irrigation available.',
+                      AppTranslations.get('ticker_market_tomato', l10n.localeName),
+                      AppTranslations.get('ticker_weather_clear', l10n.localeName),
+                      AppTranslations.get('ticker_subsidy_drip', l10n.localeName),
                     ],
                   ),
                   const SizedBox(height: 16),
                   ActivityFeedSection(
-                    title: 'Community & Alerts',
-                    onSeeAll: () {},
+                    title: AppTranslations.get('community_alerts', l10n.localeName),
+                    onSeeAll: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CommunityScreen()),
+                    ),
                   ),
                   const SizedBox(height: 8),
                 ],

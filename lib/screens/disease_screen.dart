@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
+import '../utils/app_translations.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'package:hive/hive.dart';
 
@@ -913,8 +914,8 @@ class _DiseaseScreenState extends State<DiseaseScreen>
                             activeMode == 0
                                 ? AppLocalizations.of(context)!.analyzeLeaf
                                 : activeMode == 1
-                                    ? 'Classify Fruit & Ripeness'
-                                    : 'Detect Weed Species',
+                                    ? AppTranslations.get('fruit_ripeness_mode', Provider.of<LocaleProvider>(context, listen: false).locale.languageCode)
+                                    : AppTranslations.get('detect_weed_species', Provider.of<LocaleProvider>(context, listen: false).locale.languageCode),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -967,6 +968,7 @@ class _DiseaseScreenState extends State<DiseaseScreen>
 
   // 🎛️ Mode Selector Cards Component
   Widget _buildModeSelector() {
+    final langCode = Provider.of<LocaleProvider>(context).locale.languageCode;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -976,9 +978,9 @@ class _DiseaseScreenState extends State<DiseaseScreen>
       ),
       child: Row(
         children: [
-          _buildModeTab(0, 'Disease', Icons.eco_rounded, Colors.green),
-          _buildModeTab(1, 'Fruit', Icons.apple_rounded, Colors.orange),
-          _buildModeTab(2, 'Weed', Icons.grass_rounded, Colors.teal),
+          _buildModeTab(0, AppTranslations.get('plant_disease_mode', langCode), Icons.eco_rounded, Colors.green),
+          _buildModeTab(1, AppTranslations.get('fruit_ripeness_mode', langCode), Icons.apple_rounded, Colors.orange),
+          _buildModeTab(2, AppTranslations.get('weed_detection_mode', langCode), Icons.grass_rounded, Colors.teal),
         ],
       ),
     );
@@ -1039,17 +1041,18 @@ class _DiseaseScreenState extends State<DiseaseScreen>
 
   // 💡 Mode Header Banner
   Widget _buildModeHeaderBanner() {
+    final langCode = Provider.of<LocaleProvider>(context).locale.languageCode;
     String title = activeMode == 0
-        ? "Plant Disease AI Diagnosis"
+        ? AppTranslations.get('plant_disease_mode', langCode)
         : activeMode == 1
-            ? "Fruit Ripeness & Classification"
-            : "Deep Weed Species Detection";
+            ? AppTranslations.get('fruit_ripeness_mode', langCode)
+            : AppTranslations.get('weed_detection_mode', langCode);
 
     String subtitle = activeMode == 0
-        ? "Upload leaf photo for 38 disease diagnoses across 14 crop types."
+        ? AppTranslations.get('select_capture_leaf', langCode)
         : activeMode == 1
-            ? "Upload fruit or vegetable photo to classify variety & get nutritional overview."
-            : "Upload farmland vegetation photo to identify 9 weed species & control advice.";
+            ? AppTranslations.get('select_capture_fruit', langCode)
+            : AppTranslations.get('select_capture_weed', langCode);
 
     IconData icon = activeMode == 0
         ? Icons.coronavirus_rounded
