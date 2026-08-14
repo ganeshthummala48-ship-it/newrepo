@@ -17,3 +17,4 @@ cohere>=5.0.0
 groq>=0.4.0
 kaggle>=1.6.0
 huggingface_hub<1.0.0
+onnxruntime>=1.17.0

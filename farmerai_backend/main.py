@@ -448,6 +448,7 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+MODEL_PATH_TFLITE = os.path.join(BASE_DIR, "model", "plant_disease_model.tflite")
 MODEL_PATH = os.path.join(BASE_DIR, "model", "plant_disease_model.h5")
 LABELS_PATH = os.path.join(BASE_DIR, "model", "labels.json")
 TREATMENTS_PATH = os.path.join(BASE_DIR, "data", "treatments.json")
@@ -457,10 +458,46 @@ SPECIALIZED_TREATMENTS_PATH = os.path.join(BASE_DIR, "data", "treatments_special
 disease_model = None
 specialized_models = {}
 
+class TFLiteModelWrapper:
+    """Ultra-low RAM wrapper for TFLite models (~5MB vs 300MB+ for Keras)."""
+    def __init__(self, model_path: str):
+        import tensorflow as tf
+        self.interpreter = tf.lite.Interpreter(model_path=model_path)
+        self.interpreter.allocate_tensors()
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
+
+    def predict(self, batch, verbose=0):
+        import numpy as np
+        batch = batch.astype(np.float32)
+        self.interpreter.set_tensor(self.input_details[0]['index'], batch)
+        self.interpreter.invoke()
+        return self.interpreter.get_tensor(self.output_details[0]['index'])
+
+class ONNXModelWrapper:
+    """Ultra-low RAM wrapper for ONNX models (~25MB vs 400MB+ for Keras)."""
+    def __init__(self, model_path: str):
+        import onnxruntime as ort
+        self.session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        self.input_name = self.session.get_inputs()[0].name
+
+    def predict(self, batch, verbose=0):
+        import numpy as np
+        batch = batch.astype(np.float32)
+        return self.session.run(None, {self.input_name: batch})[0]
+
 def get_disease_model():
-    """Returns or lazy-loads the global disease model."""
+    """Returns or lazy-loads the global disease model (TFLite preferred for Render 512MB RAM)."""
     global disease_model
     if disease_model is None:
+        if os.path.exists(MODEL_PATH_TFLITE):
+            try:
+                disease_model = TFLiteModelWrapper(MODEL_PATH_TFLITE)
+                print("✅ Plant disease TFLite model loaded (ultra-low RAM)")
+                return disease_model
+            except Exception as e:
+                print(f"⚠️ TFLite load failed, falling back to H5: {e}")
+
         if os.path.exists(MODEL_PATH):
             import keras
             from keras import layers as _keras_layers
@@ -477,7 +514,7 @@ def get_disease_model():
                 print(f"⚠️ Warning: Model loading failed: {e}")
                 return None
         else:
-            print(f"❌ Error: {MODEL_PATH} not found.")
+            print(f"❌ Error: Neither {MODEL_PATH_TFLITE} nor {MODEL_PATH} found.")
             return None
     return disease_model
 
@@ -857,9 +894,11 @@ async def detect_disease(file: UploadFile = File(...), lang: str = Form("en")):
 # 🍎 FRUIT CLASSIFICATION & 🌿 WEED DETECTION (LAZY + OOM SAFE)
 # ======================================================
 
+FRUITS_MODEL_ONNX_PATH = os.path.join(BASE_DIR, "model", "fruits360_model.onnx")
 FRUITS_MODEL_PATH = os.path.join(BASE_DIR, "model", "fruits360_model.h5")
 FRUITS_LABELS_PATH = os.path.join(BASE_DIR, "model", "fruits360_labels.json")
 
+DEEPWEEDS_MODEL_TFLITE_PATH = os.path.join(BASE_DIR, "model", "deepweeds_model.tflite")
 DEEPWEEDS_MODEL_PATH = os.path.join(BASE_DIR, "model", "deepweeds_model.h5")
 DEEPWEEDS_LABELS_PATH = os.path.join(BASE_DIR, "model", "deepweeds_labels.json")
 
@@ -877,16 +916,24 @@ WEED_SPECIES_MAP = {
 
 
 def _load_fruits_model():
-    """Load (or return cached) Fruits-360 model. Raises on failure."""
+    """Load (or return cached) Fruits-360 model (ONNX preferred for low RAM). Raises on failure."""
     global _fruits_model, _fruits_labels
     if _fruits_model is None:
-        if not os.path.exists(FRUITS_MODEL_PATH):
-            raise FileNotFoundError(f"Fruits model not found: {FRUITS_MODEL_PATH}")
-        import numpy as np
-        _fruits_model = keras.models.load_model(FRUITS_MODEL_PATH, compile=False)
-        # warm-up
-        _fruits_model.predict(np.zeros((1, 100, 100, 3)), verbose=0)
-        print("✅ Fruits-360 model loaded and warmed up")
+        if os.path.exists(FRUITS_MODEL_ONNX_PATH):
+            try:
+                _fruits_model = ONNXModelWrapper(FRUITS_MODEL_ONNX_PATH)
+                print("✅ Fruits-360 ONNX model loaded (ultra-low RAM)")
+            except Exception as e:
+                print(f"⚠️ Fruits ONNX load failed: {e}")
+
+        if _fruits_model is None:
+            if not os.path.exists(FRUITS_MODEL_PATH):
+                raise FileNotFoundError(f"Fruits model not found at {FRUITS_MODEL_ONNX_PATH} or {FRUITS_MODEL_PATH}")
+            import numpy as np
+            _fruits_model = keras.models.load_model(FRUITS_MODEL_PATH, compile=False)
+            _fruits_model.predict(np.zeros((1, 100, 100, 3)), verbose=0)
+            print("✅ Fruits-360 Keras model loaded")
+
         if os.path.exists(FRUITS_LABELS_PATH):
             with open(FRUITS_LABELS_PATH, "r", encoding="utf-8") as f:
                 _fruits_labels = json.load(f)
@@ -894,16 +941,24 @@ def _load_fruits_model():
 
 
 def _load_deepweeds_model():
-    """Load (or return cached) DeepWeeds model. Raises on failure."""
+    """Load (or return cached) DeepWeeds model (TFLite preferred for low RAM). Raises on failure."""
     global _deepweeds_model, _deepweeds_labels
     if _deepweeds_model is None:
-        if not os.path.exists(DEEPWEEDS_MODEL_PATH):
-            raise FileNotFoundError(f"DeepWeeds model not found: {DEEPWEEDS_MODEL_PATH}")
-        import numpy as np
-        _deepweeds_model = keras.models.load_model(DEEPWEEDS_MODEL_PATH, compile=False)
-        # warm-up
-        _deepweeds_model.predict(np.zeros((1, 224, 224, 3)), verbose=0)
-        print("✅ DeepWeeds model loaded and warmed up")
+        if os.path.exists(DEEPWEEDS_MODEL_TFLITE_PATH):
+            try:
+                _deepweeds_model = TFLiteModelWrapper(DEEPWEEDS_MODEL_TFLITE_PATH)
+                print("✅ DeepWeeds TFLite model loaded (ultra-low RAM)")
+            except Exception as e:
+                print(f"⚠️ DeepWeeds TFLite load failed: {e}")
+
+        if _deepweeds_model is None:
+            if not os.path.exists(DEEPWEEDS_MODEL_PATH):
+                raise FileNotFoundError(f"DeepWeeds model not found at {DEEPWEEDS_MODEL_TFLITE_PATH} or {DEEPWEEDS_MODEL_PATH}")
+            import numpy as np
+            _deepweeds_model = keras.models.load_model(DEEPWEEDS_MODEL_PATH, compile=False)
+            _deepweeds_model.predict(np.zeros((1, 224, 224, 3)), verbose=0)
+            print("✅ DeepWeeds Keras model loaded")
+
         if os.path.exists(DEEPWEEDS_LABELS_PATH):
             with open(DEEPWEEDS_LABELS_PATH, "r", encoding="utf-8") as f:
                 _deepweeds_labels = json.load(f)

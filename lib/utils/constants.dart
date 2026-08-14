@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // 🔗 API Base URLs
+  static const String localUrl = 'http://172.20.10.3:8000';
   static const String renderUrl = 'https://newrepo-bhe1.onrender.com';
 
+  // Points to your laptop on the local Wi-Fi network (172.20.10.3)
   static String get baseUrl => renderUrl;
 
   // 🔑 API Keys
